@@ -153,7 +153,7 @@ tr:hover td{background:rgba(22,47,101,0.1)}
 <!-- TOPBAR -->
 <header class="topbar">
   <div class="tb-left">
-    <div class="tb-logo">C</div>
+    <div class="tb-logo" style="padding:0;overflow:hidden;background:transparent"><img src="logo.png==" style="width:34px;height:34px;object-fit:contain;border-radius:8px"></div>
     <div class="tb-info">
       <strong>Clínica Dr. Guido Boabaid May</strong>
       <small>Google Ads + Meta Ads · Dashboard de Performance</small>
@@ -170,7 +170,7 @@ tr:hover td{background:rgba(22,47,101,0.1)}
   <div class="hero-inner">
     <div>
       <h1 class="hero-title">RELATÓRIO<br><em>DE PERFORMANCE</em></h1>
-      <p class="hero-sub">Clínica Dr. Guido Boabaid May · Tráfego Pago</p>
+      <p class="hero-sub">Clínica Dr. Guido Boabaid May</p>
     </div>
     <div class="hero-meta">
       <div class="hm-row">PERÍODO: <b id="h-period">–</b></div>
@@ -178,16 +178,16 @@ tr:hover td{background:rgba(22,47,101,0.1)}
       <div class="hm-row" style="margin-top:8px">
         <span class="status-live"><span class="dot"></span> DADOS AO VIVO</span>
       </div>
-      <div class="hm-row" style="margin-top:4px">FONTE: <b>Google Sheets</b></div>
+      
     </div>
   </div>
 </section>
 
 <!-- TABS -->
 <nav class="tabs">
-  <button class="tab on" onclick="switchTab('geral',this)"><span class="tag tc">∑</span>Visão Geral</button>
-  <button class="tab" onclick="switchTab('google',this)"><span class="tag tg">G</span>Google Ads</button>
-  <button class="tab" onclick="switchTab('meta',this)"><span class="tag tm">f</span>Meta Ads</button>
+  <button class="tab on" onclick="switchTab('geral',this)">Visão Geral</button>
+  <button class="tab" onclick="switchTab('google',this)">Google Ads</button>
+  <button class="tab" onclick="switchTab('meta',this)">Meta Ads</button>
 </nav>
 
 <!-- MAIN -->
@@ -247,7 +247,7 @@ tr:hover td{background:rgba(22,47,101,0.1)}
       <div class="cgrid">
         <div class="ccard wide"><div class="ctitle">Gasto Diário — Google Ads vs Meta Ads</div><canvas id="ch-gasto"></canvas></div>
         <div class="ccard"><div class="ctitle">Distribuição de Gasto por Plataforma</div><canvas id="ch-donut"></canvas></div>
-        <div class="ccard"><div class="ctitle">Leads & Conversões por Período</div><canvas id="ch-leads"></canvas></div>
+        <div class="ccard"><div class="ctitle">Conversões</div><canvas id="ch-leads"></canvas></div>
       </div>
     </div>
 
@@ -658,8 +658,6 @@ function renderKPIGeral(G, M, GC, MC) {
     kcard('Cliques Totais', totalClick, totalClickC, 'num'),
     kcard('CTR Médio', ctrMed, ctrMedC, 'pct','',true),
     kcard('Total de Conversões', totalConv, totalConvC, 'num'),
-    kcard('Leads Registrados', totalLeads, totalLeadsC, 'num'),
-    kcard('Custo por Lead Geral', cplGeral, cplGeralC, 'currency','',true),
     kcard('Custo por Conversão Geral', cpaGeral, cpaGeralC, 'currency'),
   ].join('');
 }
@@ -674,8 +672,6 @@ function renderKPIGoogle(G, GC) {
     kcard('Conversões', G.conv, GC?.conv, 'num'),
     kcard('Taxa de Conversão', G.txConv, GC?.txConv, 'pct'),
     kcard('Custo por Conversão', G.cpa, GC?.cpa, 'currency','',true),
-    kcard('Valor de Conversão', G.convVal, GC?.convVal, 'currency'),
-    kcard('ROAS', G.roas, GC?.roas, 'num','x',true),
   ].join('');
 }
 
@@ -695,8 +691,6 @@ function renderKPIMeta(M, MC) {
     kcard('Custo por Seguidor', M.cpFoll, MC?.cpFoll, 'currency'),
     kcard('Visitas ao Perfil', M.visits, MC?.visits, 'num'),
     kcard('Custo por Visita ao Perfil', M.cpVis, MC?.cpVis, 'currency'),
-    kcard('ThruPlay', M.thru, MC?.thru, 'num'),
-    kcard('Custo por ThruPlay', M.cpThru, MC?.cpThru, 'currency','',true),
   ].join('');
 }
 
@@ -745,8 +739,8 @@ function renderChartsGeral(G, M) {
   const md = getDailyData(filtMeta,   'cost');
   const allLabels = [...new Set([...gd.labels,...md.labels])].sort();
   mkChart('ch-gasto','line', allLabels, [
-    { label:'Google Ads', data: allLabels.map(l=>gd.labels.includes(l)?gd.values[gd.labels.indexOf(l)]:0), borderColor:'#4285F4', backgroundColor:'rgba(66,133,244,0.07)', tension:.4, fill:true },
-    { label:'Meta Ads',   data: allLabels.map(l=>md.labels.includes(l)?md.values[md.labels.indexOf(l)]:0), borderColor:'#0866FF', backgroundColor:'rgba(8,102,255,0.07)', tension:.4, fill:true },
+    { label:'Google Ads', data: allLabels.map(l=>gd.labels.includes(l)?gd.values[gd.labels.indexOf(l)]:0), borderColor:'#2a5cbf', backgroundColor:'rgba(42,92,191,0.07)', tension:.4, fill:true },
+    { label:'Meta Ads',   data: allLabels.map(l=>md.labels.includes(l)?md.values[md.labels.indexOf(l)]:0), borderColor:'#ffffff', backgroundColor:'rgba(255,255,255,0.05)', tension:.4, fill:true },
   ]);
 
   // Donut
@@ -768,8 +762,8 @@ function renderChartsGoogle() {
   const id = getDailyData(filtGoogle, 'impr');
   const allL = [...new Set([...cd.labels,...id.labels])].sort();
   mkChart('ch-gclicks','line', allL, [
-    { label:'Cliques', data:allL.map(l=>cd.labels.includes(l)?cd.values[cd.labels.indexOf(l)]:0), borderColor:'#fff', tension:.4 },
-    { label:'Impressões', data:allL.map(l=>id.labels.includes(l)?id.values[id.labels.indexOf(l)]:0), borderColor:'#4285F4', tension:.4, yAxisID:'y1' },
+    { label:'Cliques', data:allL.map(l=>cd.labels.includes(l)?cd.values[cd.labels.indexOf(l)]:0), borderColor:'#2a5cbf', tension:.4 },
+    { label:'Impressões', data:allL.map(l=>id.labels.includes(l)?id.values[id.labels.indexOf(l)]:0), borderColor:'#ffffff', tension:.4, yAxisID:'y1' },
   ], { scales:{
     x:{ticks:{color:'#4a617a',font:{family:'Montserrat',size:9}},grid:{color:'rgba(255,255,255,0.04)'}},
     y:{ticks:{color:'#4a617a',font:{family:'Montserrat',size:9}},grid:{color:'rgba(255,255,255,0.04)'}},
@@ -803,7 +797,7 @@ function renderChartsMeta() {
   const allL = [...new Set([...rd.labels,...id.labels])].sort();
   mkChart('ch-mreach','line', allL, [
     { label:'Alcance', data:allL.map(l=>rd.labels.includes(l)?rd.values[rd.labels.indexOf(l)]:0), borderColor:'#2a5cbf', tension:.4 },
-    { label:'Impressões', data:allL.map(l=>id.labels.includes(l)?id.values[id.labels.indexOf(l)]:0), borderColor:'#0866FF', tension:.4, yAxisID:'y1' },
+    { label:'Impressões', data:allL.map(l=>id.labels.includes(l)?id.values[id.labels.indexOf(l)]:0), borderColor:'#ffffff', tension:.4, yAxisID:'y1' },
   ], { scales:{
     x:{ticks:{color:'#4a617a',font:{family:'Montserrat',size:9}},grid:{color:'rgba(255,255,255,0.04)'}},
     y:{ticks:{color:'#4a617a',font:{family:'Montserrat',size:9}},grid:{color:'rgba(255,255,255,0.04)'}},
@@ -846,30 +840,28 @@ function renderTableGoogle() {
   });
   const rows = Object.values(by);
 
-  document.getElementById('th-google').innerHTML = `<tr>${['Campanha','Gasto','Impressões','Cliques','CTR','Conv.','CPA','Valor Conv.','ROAS'].map(h=>`<th>${h}</th>`).join('')}</tr>`;
+  document.getElementById('th-google').innerHTML = `<tr>${['Campanha','Gasto','Impressões','Cliques','CTR','Conv.','CPA'].map(h=>`<th>${h}</th>`).join('')}</tr>`;
   document.getElementById('tb-google').innerHTML = rows.map(r => {
     const ctr  = safe(r.clicks,r.impr)*100;
     const cpa  = safe(r.cost,r.conv);
-    const roas = safe(r.convVal,r.cost);
     return `<tr>
       <td class="tdm">${r.campaign}</td>
       <td>${fmtBRL(r.cost)}</td><td>${fmtNum(r.impr)}</td><td>${fmtNum(r.clicks)}</td>
       <td>${fmtPct(ctr)}</td><td>${fmtNum(r.conv)}</td>
-      <td>${cpa?fmtBRL(cpa):'–'}</td><td>${r.convVal?fmtBRL(r.convVal):'–'}</td>
-      <td>${roas?roas.toFixed(2)+'x':'–'}</td>
+      <td>${cpa?fmtBRL(cpa):'–'}</td>
     </tr>`;
   }).join('');
 }
 
 function renderTableMeta() {
-  if (!filtMeta.length) { document.getElementById('tb-meta').innerHTML='<tr><td colspan="10" class="nodata">Sem dados para o período selecionado</td></tr>'; return; }
+  if (!filtMeta.length) { document.getElementById('tb-meta').innerHTML='<tr><td colspan="9" class="nodata">Sem dados para o período selecionado</td></tr>'; return; }
 
-  const cols = ['Data','Impressões','Alcance','Cliques','Link Clicks','CTR','Gasto','Leads','CPL','Conv.'];
+  const cols = ['Data','Impressões','Alcance','Cliques','CTR','Gasto','Leads','CPL','Conv.'];
   document.getElementById('th-meta').innerHTML = `<tr>${cols.map(h=>`<th>${h}</th>`).join('')}</tr>`;
   document.getElementById('tb-meta').innerHTML = filtMeta.slice(0,50).map(r => `<tr>
     <td class="tdm">${fmtDate(r.date)}</td>
     <td>${fmtNum(r.impr)}</td><td>${fmtNum(r.reach)}</td>
-    <td>${fmtNum(r.clicks)}</td><td>${fmtNum(r.lClicks)}</td>
+    <td>${fmtNum(r.clicks)}</td>
     <td>${fmtPct(r.ctr)}</td><td>${fmtBRL(r.cost)}</td>
     <td>${fmtNum(r.leads)}</td><td>${r.leads?fmtBRL(safe(r.cost,r.leads)):'–'}</td>
     <td>${fmtNum(r.conv)}</td>
