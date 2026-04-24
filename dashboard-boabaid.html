@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Performance Dashboard · Clínica Dr. Guido Boabaid May</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --blue:#162F65; --blue-mid:#1e3f8a; --blue-light:#2a5cbf;
+  --blue-dark:#0d1f45; --blue-glow:rgba(22,47,101,0.3);
+  --white:#FFFFFF;
+  --gray-100:#f0f4f8; --gray-200:#dce3ed; --gray-300:#a8b8cc;
+  --gray-400:#6b82a0; --gray-500:#4a617a; --gray-700:#1f2f3f;
+  --gray-800:#162030; --gray-900:#0e1620;
+  --card:#192842; --card2:#1a2f50; --border:rgba(255,255,255,0.07);
+  --green:#00e676; --red:#ff4560; --yellow:#ffd600;
+  --radius:14px; --shadow:0 8px 32px rgba(0,0,0,0.4);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Montserrat',sans-serif;background:var(--gray-900);color:var(--white);min-height:100vh;overflow-x:hidden}
+
+/* TOPBAR */
+.topbar{background:var(--blue-dark);border-bottom:1px solid var(--border);padding:0 28px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200}
+.tb-left{display:flex;align-items:center;gap:12px}
+.tb-logo{width:34px;height:34px;background:var(--white);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:900;color:var(--blue);flex-shrink:0}
+.tb-info strong{display:block;font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase}
+.tb-info small{font-size:9px;font-weight:500;color:var(--gray-300);letter-spacing:1px}
+.tb-right{display:flex;gap:8px;align-items:center}
+.btn{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;border:none;cursor:pointer;padding:8px 16px;border-radius:7px;transition:all .2s}
+.btn-ghost{background:transparent;color:var(--gray-300);border:1px solid var(--border)}
+.btn-ghost:hover{border-color:var(--white);color:var(--white)}
+.btn-white{background:var(--white);color:var(--blue)}
+.btn-white:hover{background:var(--gray-200)}
+
+/* HERO */
+.hero{background:linear-gradient(135deg,var(--blue-dark) 0%,#091425 55%,var(--gray-900) 100%);padding:40px 32px 28px;border-bottom:1px solid var(--border);position:relative;overflow:hidden}
+.hero::after{content:'';position:absolute;right:-80px;top:-80px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(22,47,101,0.25) 0%,transparent 70%);pointer-events:none}
+.hero-inner{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap}
+.hero-title{font-size:clamp(32px,5vw,60px);font-weight:900;line-height:1;text-transform:uppercase;letter-spacing:-1px}
+.hero-title em{color:var(--blue-light);font-style:normal}
+.hero-sub{margin-top:8px;font-size:10px;font-weight:700;letter-spacing:3px;color:var(--gray-300);text-transform:uppercase}
+.hero-meta{text-align:right;flex-shrink:0}
+.hm-row{font-size:9px;font-weight:600;letter-spacing:1px;color:var(--gray-400);text-transform:uppercase;margin-bottom:5px}
+.hm-row b{color:var(--white);font-weight:700}
+.status-live{display:inline-flex;align-items:center;gap:6px;font-size:9px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--green)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* TABS */
+.tabs{background:var(--blue-dark);border-bottom:1px solid var(--border);padding:0 32px;display:flex;gap:0;overflow-x:auto}
+.tab{font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;background:none;border:none;border-bottom:3px solid transparent;color:var(--gray-400);cursor:pointer;padding:15px 22px;white-space:nowrap;transition:all .2s}
+.tab:hover{color:var(--white)}
+.tab.on{color:var(--white);border-bottom-color:var(--blue-light)}
+.tag{display:inline-block;width:14px;height:14px;border-radius:3px;font-size:8px;font-weight:900;line-height:14px;text-align:center;margin-right:6px}
+.tg{background:#4285F4}.tm{background:#0866FF}.tc{background:var(--blue)}
+
+/* MAIN */
+.main{padding:24px 32px 60px}
+
+/* FILTERS */
+.fbox{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;margin-bottom:24px}
+.flabel{font-size:9px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:var(--blue-light);margin-bottom:14px}
+.frow{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap}
+.fg{flex:1;min-width:130px}
+.fg label{display:block;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--gray-400);margin-bottom:5px}
+.fg input,.fg select{width:100%;background:var(--gray-800);border:1px solid var(--border);color:var(--white);font-family:'Montserrat',sans-serif;font-size:11px;font-weight:600;padding:9px 11px;border-radius:7px;outline:none;transition:border-color .2s;appearance:none}
+.fg input:focus,.fg select:focus{border-color:var(--blue-light)}
+.fg select option{background:var(--gray-800)}
+.factions{display:flex;gap:8px;align-items:flex-end;flex-shrink:0}
+.fdivider{height:1px;background:var(--border);margin:14px 0 12px}
+.compare-wrap{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ctoggle{display:flex;align-items:center;gap:7px;font-size:10px;font-weight:700;color:var(--gray-300);cursor:pointer;user-select:none;white-space:nowrap}
+.ctoggle input{accent-color:var(--blue-light);width:14px;height:14px}
+.cfields{display:flex;gap:12px;flex-wrap:wrap}
+
+/* LOADING */
+.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:16px}
+.spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--blue-light);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading p{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--gray-400)}
+
+/* ERROR */
+.error-box{background:rgba(255,69,96,0.1);border:1px solid rgba(255,69,96,0.3);border-radius:10px;padding:18px 20px;margin-bottom:20px;font-size:12px;font-weight:600;color:var(--red)}
+
+/* SECTION */
+.sec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.sec-title{font-size:10px;font-weight:800;letter-spacing:3px;text-transform:uppercase;display:flex;align-items:center;gap:10px}
+.sec-title::before{content:'';width:14px;height:3px;background:var(--blue-light);border-radius:2px;flex-shrink:0}
+.sec-label{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--gray-500)}
+
+/* KPI GRID */
+.kgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;margin-bottom:24px}
+.kcard{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 16px 13px;transition:border-color .2s,transform .2s;cursor:default;position:relative;overflow:hidden}
+.kcard:hover{border-color:rgba(255,255,255,0.16);transform:translateY(-2px)}
+.kcard.hl{border-color:var(--blue-light)}
+.kcard.hl::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(22,47,101,0.2) 0%,transparent 60%);pointer-events:none}
+.klabel{font-size:8px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--gray-400);margin-bottom:9px}
+.kval{font-size:24px;font-weight:800;line-height:1;color:var(--white);margin-bottom:9px}
+.kval span{font-size:13px;font-weight:700}
+.kfoot{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.kdelta{font-size:10px;font-weight:700;display:flex;align-items:center;gap:2px}
+.kdelta.up{color:var(--green)}.kdelta.dn{color:var(--red)}
+.kcomp{font-size:9px;font-weight:600;color:var(--gray-500)}
+
+/* CHARTS */
+.cgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:24px}
+.ccard{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px}
+.ccard.wide{grid-column:1/-1}
+.ctitle{font-size:9px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--gray-300);margin-bottom:16px}
+
+/* TABLE */
+.tcard{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:24px}
+.thead-bar{padding:16px 20px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.tscroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{font-size:8px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--gray-500);padding:9px 14px;text-align:left;background:rgba(0,0,0,0.2);white-space:nowrap}
+td{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.03);font-weight:600;color:var(--gray-200);white-space:nowrap}
+tr:hover td{background:rgba(22,47,101,0.1)}
+.tdm{color:var(--white);font-weight:700}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:8px;font-weight:800;letter-spacing:1px;text-transform:uppercase}
+.bg{background:rgba(66,133,244,0.15);color:#7aabff}
+.bm{background:rgba(8,102,255,0.15);color:#6699ff}
+.bn{background:rgba(0,230,118,0.12);color:var(--green)}
+.br{background:rgba(255,69,96,0.12);color:var(--red)}
+
+/* PANEL */
+.panel{display:none}.panel.on{display:block}
+.fade{animation:fadeUp .35s ease both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* NO DATA */
+.nodata{text-align:center;padding:40px;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--gray-500)}
+
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-thumb{background:var(--gray-700);border-radius:3px}
+
+@media(max-width:768px){
+  .hero-inner{flex-direction:column;align-items:flex-start}
+  .hero-meta{text-align:left}
+  .cgrid{grid-template-columns:1fr}
+  .main{padding:16px 14px 40px}
+  .hero{padding:26px 16px 20px}
+  .tabs{padding:0 14px}
+}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <div class="tb-left">
+    <div class="tb-logo">C</div>
+    <div class="tb-info">
+      <strong>Clínica Dr. Guido Boabaid May</strong>
+      <small>Google Ads + Meta Ads · Dashboard de Performance</small>
+    </div>
+  </div>
+  <div class="tb-right">
+    <button class="btn btn-ghost" onclick="reloadData()">↺ Atualizar Dados</button>
+    <button class="btn btn-white" onclick="exportCSV()">↓ Exportar CSV</button>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-inner">
+    <div>
+      <h1 class="hero-title">RELATÓRIO<br><em>DE PERFORMANCE</em></h1>
+      <p class="hero-sub">Clínica Dr. Guido Boabaid May · Tráfego Pago</p>
+    </div>
+    <div class="hero-meta">
+      <div class="hm-row">PERÍODO: <b id="h-period">–</b></div>
+      <div class="hm-row">COMPARATIVO: <b id="h-compare">–</b></div>
+      <div class="hm-row" style="margin-top:8px">
+        <span class="status-live"><span class="dot"></span> DADOS AO VIVO</span>
+      </div>
+      <div class="hm-row" style="margin-top:4px">FONTE: <b>Google Sheets</b></div>
+    </div>
+  </div>
+</section>
+
+<!-- TABS -->
+<nav class="tabs">
+  <button class="tab on" onclick="switchTab('geral',this)"><span class="tag tc">∑</span>Visão Geral</button>
+  <button class="tab" onclick="switchTab('google',this)"><span class="tag tg">G</span>Google Ads</button>
+  <button class="tab" onclick="switchTab('meta',this)"><span class="tag tm">f</span>Meta Ads</button>
+</nav>
+
+<!-- MAIN -->
+<main class="main">
+
+  <!-- FILTERS -->
+  <div class="fbox">
+    <div class="flabel">▶ Filtros</div>
+    <div class="frow">
+      <div class="fg"><label>Data Inicial</label><input type="date" id="f-start" onchange="applyFilters()"></div>
+      <div class="fg"><label>Data Final</label><input type="date" id="f-end" onchange="applyFilters()"></div>
+      <div class="fg">
+        <label>Campanha (Google)</label>
+        <select id="f-campaign" onchange="applyFilters()"><option value="">Todas</option></select>
+      </div>
+      <div class="fg">
+        <label>Campanha (Meta)</label>
+        <select id="f-metacampaign" onchange="applyFilters()"><option value="">Todas</option></select>
+      </div>
+      <div class="factions">
+        <button class="btn btn-white" onclick="applyFilters()">Aplicar</button>
+        <button class="btn btn-ghost" onclick="clearFilters()">Limpar</button>
+      </div>
+    </div>
+    <div class="fdivider"></div>
+    <div class="compare-wrap">
+      <label class="ctoggle">
+        <input type="checkbox" id="cmp-on" checked onchange="toggleCompare()">
+        Comparar com período anterior
+      </label>
+      <div class="cfields" id="cmp-fields">
+        <div class="fg" style="min-width:130px"><label>Comparativo Início</label><input type="date" id="c-start" onchange="applyFilters()"></div>
+        <div class="fg" style="min-width:130px"><label>Comparativo Fim</label><input type="date" id="c-end" onchange="applyFilters()"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOADING STATE -->
+  <div id="loading-state" class="loading">
+    <div class="spinner"></div>
+    <p>Carregando dados das planilhas...</p>
+  </div>
+
+  <!-- ERROR -->
+  <div id="error-box" class="error-box" style="display:none"></div>
+
+  <!-- CONTENT (hidden until data loads) -->
+  <div id="content" style="display:none">
+
+    <!-- ═══ GERAL ═══ -->
+    <div id="panel-geral" class="panel on fade">
+      <div class="sec-head">
+        <div class="sec-title">Indicadores Consolidados</div>
+        <div class="sec-label" id="compare-label">// VS. PERÍODO COMPARATIVO</div>
+      </div>
+      <div class="kgrid" id="kg-geral"></div>
+      <div class="cgrid">
+        <div class="ccard wide"><div class="ctitle">Gasto Diário — Google Ads vs Meta Ads</div><canvas id="ch-gasto"></canvas></div>
+        <div class="ccard"><div class="ctitle">Distribuição de Gasto por Plataforma</div><canvas id="ch-donut"></canvas></div>
+        <div class="ccard"><div class="ctitle">Leads & Conversões por Período</div><canvas id="ch-leads"></canvas></div>
+      </div>
+    </div>
+
+    <!-- ═══ GOOGLE ═══ -->
+    <div id="panel-google" class="panel fade">
+      <div class="sec-head">
+        <div class="sec-title">Google Ads · KPIs</div>
+        <div class="sec-label">// VS. PERÍODO COMPARATIVO</div>
+      </div>
+      <div class="kgrid" id="kg-google"></div>
+      <div class="cgrid">
+        <div class="ccard wide"><div class="ctitle">Cliques & Impressões por Dia</div><canvas id="ch-gclicks"></canvas></div>
+        <div class="ccard"><div class="ctitle">CTR por Campanha</div><canvas id="ch-gctr"></canvas></div>
+        <div class="ccard"><div class="ctitle">Custo por Conversão por Campanha</div><canvas id="ch-gcpa"></canvas></div>
+      </div>
+      <div class="tcard">
+        <div class="thead-bar"><div class="sec-title" style="margin:0">Campanhas Google Ads</div></div>
+        <div class="tscroll"><table><thead id="th-google"></thead><tbody id="tb-google"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- ═══ META ═══ -->
+    <div id="panel-meta" class="panel fade">
+      <div class="sec-head">
+        <div class="sec-title">Meta Ads · KPIs</div>
+        <div class="sec-label">// VS. PERÍODO COMPARATIVO</div>
+      </div>
+      <div class="kgrid" id="kg-meta"></div>
+      <div class="cgrid">
+        <div class="ccard wide"><div class="ctitle">Alcance & Impressões por Dia</div><canvas id="ch-mreach"></canvas></div>
+        <div class="ccard"><div class="ctitle">Leads por Dia</div><canvas id="ch-mleads"></canvas></div>
+        <div class="ccard"><div class="ctitle">Custo por Lead por Dia</div><canvas id="ch-mcpl"></canvas></div>
+      </div>
+      <div class="tcard">
+        <div class="thead-bar"><div class="sec-title" style="margin:0">Dados Meta Ads por Data</div></div>
+        <div class="tscroll"><table><thead id="th-meta"></thead><tbody id="tb-meta"></tbody></table></div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</main>
+
+<script>
+// ══════════════════════════════════════════
+// CONFIG — URLs das planilhas publicadas
+// ══════════════════════════════════════════
+const GOOGLE_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSdTUFHJxLSOUqFR7fHPPvi0v68Kw5kMCocoKmOXyLwJeVoy79FN-BBhA-8D75xAiIRsTJHSPeCVcmr/pub?gid=681562553&single=true&output=csv';
+const META_CSV   = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSdTUFHJxLSOUqFR7fHPPvi0v68Kw5kMCocoKmOXyLwJeVoy79FN-BBhA-8D75xAiIRsTJHSPeCVcmr/pub?gid=98068718&single=true&output=csv';
+
+// ── STATE ──
+let rawGoogle = [], rawMeta = [];
+let filtGoogle = [], filtMeta = [], filtCompG = [], filtCompM = [];
+let charts = {};
+
+// ══════════════════════════════════════════
+// FETCH CSV via PapaParse (browser fetch)
+// ══════════════════════════════════════════
+function fetchCSV(url) {
+  return new Promise((resolve, reject) => {
+    Papa.parse(url, {
+      download: true,
+      header: false,        // vamos tratar manualmente pois cabeçalho está na linha 2
+      skipEmptyLines: true,
+      complete: r => resolve(r.data),
+      error: e => reject(e)
+    });
+  });
+}
+
+// ── Converte array de arrays em array de objetos usando linha N como header ──
+function toObjects(rows, headerRow = 1) {
+  if (rows.length <= headerRow) return [];
+  const headers = rows[headerRow].map(h => h.trim());
+  return rows.slice(headerRow + 1).map(row => {
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = (row[i] || '').trim(); });
+    return obj;
+  });
+}
+
+// ══════════════════════════════════════════
+// COLUMN MAPPING — identifica colunas automaticamente
+// ══════════════════════════════════════════
+function findCol(obj, candidates) {
+  const keys = Object.keys(obj);
+  for (const c of candidates) {
+    const found = keys.find(k => k.toLowerCase().includes(c.toLowerCase()));
+    if (found) return found;
+  }
+  return null;
+}
+
+// Mapeia Google Ads
+function mapGoogle(rows) {
+  return rows.map(r => {
+    const dateCol   = findCol(r, ['Day','Date','Data','Dia','day']);
+    const campCol   = findCol(r, ['Campaign','Campanha','campaign']);
+    const costCol   = findCol(r, ['Cost','Custo','Gasto','cost','spend']);
+    const impCol    = findCol(r, ['Impr','Impressi','impressi','impr']);
+    const clickCol  = findCol(r, ['Clicks','Cliques','clicks','click']);
+    const ctrCol    = findCol(r, ['CTR','ctr']);
+    const cpcCol    = findCol(r, ['CPC','cpc','Avg. CPC']);
+    const convCol   = findCol(r, ['Conversions','Conversões','conv']);
+    const convValCol= findCol(r, ['Conv. value','Valor','valor conv']);
+    const cpaCol    = findCol(r, ['Cost / conv','CPA','cpa','custo por conv']);
+
+    return {
+      date:     dateCol   ? parseDate(r[dateCol])   : null,
+      campaign: campCol   ? r[campCol]               : '–',
+      cost:     costCol   ? parseNum(r[costCol])     : 0,
+      impr:     impCol    ? parseNum(r[impCol])      : 0,
+      clicks:   clickCol  ? parseNum(r[clickCol])    : 0,
+      ctr:      ctrCol    ? parseNum(r[ctrCol])      : 0,
+      cpc:      cpcCol    ? parseNum(r[cpcCol])      : 0,
+      conv:     convCol   ? parseNum(r[convCol])     : 0,
+      convVal:  convValCol? parseNum(r[convValCol])  : 0,
+      cpa:      cpaCol    ? parseNum(r[cpaCol])      : 0,
+      _raw: r
+    };
+  }).filter(r => r.date);
+}
+
+// Mapeia Meta Ads
+function mapMeta(rows) {
+  return rows.map(r => {
+    const dateCol    = findCol(r, ['Day','Date','Data','Dia','Reporting']);
+    const impCol     = findCol(r, ['Impressi','Impress','impress']);
+    const reachCol   = findCol(r, ['Reach','Alcance','reach']);
+    const clickCol   = findCol(r, ['Clicks','Cliques','clicks','click']);
+    const linkCol    = findCol(r, ['Link click','link click','clique no link']);
+    const ctrCol     = findCol(r, ['CTR','ctr']);
+    const costCol    = findCol(r, ['Amount spent','Valor gasto','Gasto','spend','cost']);
+    const leadCol    = findCol(r, ['Lead','lead']);
+    const cplCol     = findCol(r, ['Cost per lead','CPL','custo por lead']);
+    const convCol    = findCol(r, ['Result','Resultado','conv','result']);
+    const cpaCol     = findCol(r, ['Cost per result','CPA','custo por result']);
+    const follCol    = findCol(r, ['Follow','Seguidor','follow']);
+    const profileCol = findCol(r, ['Profile visit','Visita','perfil']);
+    const thruCol    = findCol(r, ['ThruPlay','thruplay','Thru']);
+    const cptCol     = findCol(r, ['Cost per ThruPlay','custo por thru']);
+
+    return {
+      date:        dateCol    ? parseDate(r[dateCol])    : null,
+      impr:        impCol     ? parseNum(r[impCol])      : 0,
+      reach:       reachCol   ? parseNum(r[reachCol])    : 0,
+      clicks:      clickCol   ? parseNum(r[clickCol])    : 0,
+      linkClicks:  linkCol    ? parseNum(r[linkCol])     : 0,
+      ctr:         ctrCol     ? parseNum(r[ctrCol])      : 0,
+      cost:        costCol    ? parseNum(r[costCol])     : 0,
+      leads:       leadCol    ? parseNum(r[leadCol])     : 0,
+      cpl:         cplCol     ? parseNum(r[cplCol])      : 0,
+      conv:        convCol    ? parseNum(r[convCol])     : 0,
+      cpa:         cpaCol     ? parseNum(r[cpaCol])      : 0,
+      followers:   follCol    ? parseNum(r[follCol])     : 0,
+      profileVisit:profileCol ? parseNum(r[profileCol])  : 0,
+      thruplay:    thruCol    ? parseNum(r[thruCol])     : 0,
+      costThru:    cptCol     ? parseNum(r[cptCol])      : 0,
+      _raw: r
+    };
+  }).filter(r => r.date);
+}
+
+// ── PARSERS ──
+function parseNum(v) {
+  if (!v) return 0;
+  // Remove R$, %, espaços, troca vírgula por ponto
+  const s = String(v).replace(/[R$\s%]/g,'').replace('.','').replace(',','.');
+  return parseFloat(s) || 0;
+}
+
+function parseDate(v) {
+  if (!v) return null;
+  // Tenta formatos: dd/mm/yyyy, yyyy-mm-dd, mm/dd/yyyy, "Jan 1, 2026"
+  let d;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+    d = new Date(v + 'T00:00:00');
+  } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(v)) {
+    const [a, b, c] = v.split('/');
+    // Tenta dd/mm/yyyy primeiro
+    d = new Date(`${c}-${b}-${a}T00:00:00`);
+    if (isNaN(d)) d = new Date(`${c}-${a}-${b}T00:00:00`);
+  } else {
+    d = new Date(v);
+  }
+  return isNaN(d) ? null : d;
+}
+
+// ── DATE HELPERS ──
+function fmtDate(d) {
+  if (!d) return '–';
+  return d.toLocaleDateString('pt-BR');
+}
+function isoDate(d) {
+  return d ? d.toISOString().slice(0,10) : '';
+}
+function inRange(date, start, end) {
+  return date >= start && date <= end;
+}
+
+// ══════════════════════════════════════════
+// INIT — carrega tudo
+// ══════════════════════════════════════════
+async function init() {
+  showLoading(true);
+  hideError();
+
+  try {
+    const [gRows, mRows] = await Promise.all([
+      fetchCSV(GOOGLE_CSV),
+      fetchCSV(META_CSV)
+    ]);
+
+    rawGoogle = mapGoogle(toObjects(gRows, 1));
+    rawMeta   = mapMeta(toObjects(mRows, 1));
+
+    if (!rawGoogle.length && !rawMeta.length) {
+      throw new Error('Nenhum dado encontrado nas planilhas. Verifique se as planilhas estão publicadas corretamente e se o cabeçalho está na linha 2.');
+    }
+
+    setupDates();
+    populateCampaignFilters();
+    applyFilters();
+    showLoading(false);
+    document.getElementById('content').style.display = 'block';
+
+  } catch(e) {
+    showLoading(false);
+    showError(`Erro ao carregar planilha: ${e.message || e}`);
+    console.error(e);
+  }
+}
+
+// ── SETUP DATES (auto-detecta range dos dados) ──
+function setupDates() {
+  const allDates = [...rawGoogle, ...rawMeta].map(r => r.date).filter(Boolean);
+  if (!allDates.length) return;
+  const minD = new Date(Math.min(...allDates));
+  const maxD = new Date(Math.max(...allDates));
+
+  document.getElementById('f-start').value = isoDate(minD);
+  document.getElementById('f-end').value   = isoDate(maxD);
+
+  // Período comparativo = mês anterior ao início
+  const compEnd = new Date(minD); compEnd.setDate(compEnd.getDate() - 1);
+  const compStart = new Date(compEnd); compStart.setDate(1);
+  document.getElementById('c-start').value = isoDate(compStart);
+  document.getElementById('c-end').value   = isoDate(compEnd);
+
+  document.getElementById('h-period').textContent  = `${fmtDate(minD)} – ${fmtDate(maxD)}`;
+  document.getElementById('h-compare').textContent = `${fmtDate(compStart)} – ${fmtDate(compEnd)}`;
+}
+
+// ── CAMPAIGN FILTERS ──
+function populateCampaignFilters() {
+  const gcamps = [...new Set(rawGoogle.map(r => r.campaign).filter(Boolean))];
+  const mcamps = [...new Set(rawMeta.map(r => r.campaign || '').filter(Boolean))];
+
+  const gSel = document.getElementById('f-campaign');
+  gcamps.forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; gSel.appendChild(o); });
+
+  const mSel = document.getElementById('f-metacampaign');
+  mcamps.forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; mSel.appendChild(o); });
+}
+
+// ══════════════════════════════════════════
+// FILTERS
+// ══════════════════════════════════════════
+function applyFilters() {
+  const start   = new Date(document.getElementById('f-start').value + 'T00:00:00');
+  const end     = new Date(document.getElementById('f-end').value   + 'T23:59:59');
+  const cStart  = new Date(document.getElementById('c-start').value + 'T00:00:00');
+  const cEnd    = new Date(document.getElementById('c-end').value   + 'T23:59:59');
+  const gCamp   = document.getElementById('f-campaign').value;
+  const mCamp   = document.getElementById('f-metacampaign').value;
+  const doCmp   = document.getElementById('cmp-on').checked;
+
+  filtGoogle = rawGoogle.filter(r => inRange(r.date, start, end) && (!gCamp || r.campaign === gCamp));
+  filtMeta   = rawMeta.filter(r   => inRange(r.date, start, end));
+  filtCompG  = doCmp ? rawGoogle.filter(r => inRange(r.date, cStart, cEnd) && (!gCamp || r.campaign === gCamp)) : [];
+  filtCompM  = doCmp ? rawMeta.filter(r   => inRange(r.date, cStart, cEnd)) : [];
+
+  document.getElementById('h-period').textContent  = `${document.getElementById('f-start').value.split('-').reverse().join('/')} – ${document.getElementById('f-end').value.split('-').reverse().join('/')}`;
+  if (doCmp) document.getElementById('h-compare').textContent = `${document.getElementById('c-start').value.split('-').reverse().join('/')} – ${document.getElementById('c-end').value.split('-').reverse().join('/')}`;
+
+  renderAll();
+}
+
+function clearFilters() {
+  setupDates();
+  document.getElementById('f-campaign').value = '';
+  document.getElementById('f-metacampaign').value = '';
+  applyFilters();
+}
+
+function toggleCompare() {
+  document.getElementById('cmp-fields').style.display = document.getElementById('cmp-on').checked ? '' : 'none';
+  applyFilters();
+}
+
+// ══════════════════════════════════════════
+// AGGREGATION HELPERS
+// ══════════════════════════════════════════
+const sum  = (arr, k) => arr.reduce((a,r) => a + (r[k]||0), 0);
+const avg  = (arr, k) => arr.length ? sum(arr,k)/arr.length : 0;
+const safe = (a,b) => b ? a/b : 0;
+
+function aggGoogle(rows) {
+  const cost  = sum(rows,'cost');
+  const impr  = sum(rows,'impr');
+  const clicks= sum(rows,'clicks');
+  const conv  = sum(rows,'conv');
+  const convVal=sum(rows,'convVal');
+  return {
+    cost, impr, clicks, conv, convVal,
+    ctr:  safe(clicks, impr)*100,
+    cpc:  safe(cost, clicks),
+    cpa:  safe(cost, conv),
+    roas: safe(convVal, cost),
+    txConv: safe(conv, clicks)*100
+  };
+}
+
+function aggMeta(rows) {
+  const cost   = sum(rows,'cost');
+  const impr   = sum(rows,'impr');
+  const reach  = sum(rows,'reach');
+  const clicks = sum(rows,'clicks');
+  const lClicks= sum(rows,'linkClicks');
+  const leads  = sum(rows,'leads');
+  const conv   = sum(rows,'conv');
+  const foll   = sum(rows,'followers');
+  const visits = sum(rows,'profileVisit');
+  const thru   = sum(rows,'thruplay');
+  return {
+    cost, impr, reach, clicks, lClicks, leads, conv, foll, visits, thru,
+    ctr:   safe(clicks,impr)*100,
+    cpl:   safe(cost,leads),
+    cpa:   safe(cost,conv),
+    cpFoll:safe(cost,foll),
+    cpVis: safe(cost,visits),
+    cpThru:safe(cost,thru)
+  };
+}
+
+// ══════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════
+function renderAll() {
+  const G  = aggGoogle(filtGoogle);
+  const M  = aggMeta(filtMeta);
+  const GC = filtCompG.length ? aggGoogle(filtCompG) : null;
+  const MC = filtCompM.length ? aggMeta(filtCompM)   : null;
+
+  renderKPIGeral(G, M, GC, MC);
+  renderKPIGoogle(G, GC);
+  renderKPIMeta(M, MC);
+  renderChartsGeral(G, M);
+  renderChartsGoogle();
+  renderChartsMeta();
+  renderTableGoogle();
+  renderTableMeta();
+}
+
+// ── KPI CARD ──
+function kcard(label, value, compVal, fmt, suffix='', hl=false) {
+  const display = fmt==='currency' ? fmtBRL(value) : fmt==='pct' ? fmtPct(value) : fmtNum(value);
+  let deltaHTML = '';
+  if (compVal !== null && compVal !== undefined && compVal !== 0) {
+    const pct = ((value - compVal) / Math.abs(compVal)) * 100;
+    const up  = pct >= 0;
+    const cls = up ? 'up' : 'dn';
+    const arr = up ? '▲' : '▼';
+    const compDisplay = fmt==='currency' ? fmtBRL(compVal) : fmt==='pct' ? fmtPct(compVal) : fmtNum(compVal);
+    deltaHTML = `<span class="kdelta ${cls}">${arr} ${Math.abs(pct).toFixed(1)}%</span><span class="kcomp">vs ${compDisplay}</span>`;
+  }
+  return `<div class="kcard ${hl?'hl':''}">
+    <div class="klabel">${label}</div>
+    <div class="kval">${display}${suffix?`<span>${suffix}</span>`:''}</div>
+    <div class="kfoot">${deltaHTML||'<span class="kcomp">sem comparativo</span>'}</div>
+  </div>`;
+}
+
+function fmtBRL(v){ return 'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) }
+function fmtNum(v){ return Number(Math.round(v)).toLocaleString('pt-BR') }
+function fmtPct(v){ return Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%' }
+
+function renderKPIGeral(G, M, GC, MC) {
+  const totalCost = G.cost + M.cost;
+  const totalCostC= GC && MC ? GC.cost + MC.cost : null;
+  const totalImpr = G.impr + M.impr;
+  const totalImprC= GC && MC ? GC.impr + MC.impr : null;
+  const totalClick= G.clicks + M.clicks;
+  const totalClickC=GC && MC ? GC.clicks + MC.clicks : null;
+  const totalConv = G.conv + M.conv;
+  const totalConvC= GC && MC ? GC.conv + MC.conv : null;
+  const totalLeads= M.leads;
+  const totalLeadsC=MC ? MC.leads : null;
+  const cplGeral  = safe(M.cost, M.leads);
+  const cplGeralC = MC ? safe(MC.cost, MC.leads) : null;
+  const cpaGeral  = safe(totalCost, totalConv);
+  const cpaGeralC = totalConvC ? safe(totalCostC, totalConvC) : null;
+  const ctrMed    = (G.ctr + M.ctr) / 2;
+  const ctrMedC   = GC && MC ? (GC.ctr + MC.ctr)/2 : null;
+
+  document.getElementById('kg-geral').innerHTML = [
+    kcard('Gasto Geral', totalCost, totalCostC, 'currency','',true),
+    kcard('Impressões Totais', totalImpr, totalImprC, 'num'),
+    kcard('Cliques Totais', totalClick, totalClickC, 'num'),
+    kcard('CTR Médio', ctrMed, ctrMedC, 'pct','',true),
+    kcard('Total de Conversões', totalConv, totalConvC, 'num'),
+    kcard('Leads Registrados', totalLeads, totalLeadsC, 'num'),
+    kcard('Custo por Lead Geral', cplGeral, cplGeralC, 'currency','',true),
+    kcard('Custo por Conversão Geral', cpaGeral, cpaGeralC, 'currency'),
+  ].join('');
+}
+
+function renderKPIGoogle(G, GC) {
+  document.getElementById('kg-google').innerHTML = [
+    kcard('Custo', G.cost, GC?.cost, 'currency'),
+    kcard('Impressões', G.impr, GC?.impr, 'num'),
+    kcard('Cliques', G.clicks, GC?.clicks, 'num'),
+    kcard('CTR', G.ctr, GC?.ctr, 'pct','',true),
+    kcard('CPC Médio', G.cpc, GC?.cpc, 'currency'),
+    kcard('Conversões', G.conv, GC?.conv, 'num'),
+    kcard('Taxa de Conversão', G.txConv, GC?.txConv, 'pct'),
+    kcard('Custo por Conversão', G.cpa, GC?.cpa, 'currency','',true),
+    kcard('Valor de Conversão', G.convVal, GC?.convVal, 'currency'),
+    kcard('ROAS', G.roas, GC?.roas, 'num','x',true),
+  ].join('');
+}
+
+function renderKPIMeta(M, MC) {
+  document.getElementById('kg-meta').innerHTML = [
+    kcard('Gasto Total', M.cost, MC?.cost, 'currency'),
+    kcard('Impressões', M.impr, MC?.impr, 'num'),
+    kcard('Alcance', M.reach, MC?.reach, 'num'),
+    kcard('Cliques', M.clicks, MC?.clicks, 'num'),
+    kcard('Cliques no Link', M.lClicks, MC?.lClicks, 'num'),
+    kcard('CTR', M.ctr, MC?.ctr, 'pct','',true),
+    kcard('Leads', M.leads, MC?.leads, 'num'),
+    kcard('Custo por Lead', M.cpl, MC?.cpl, 'currency','',true),
+    kcard('Conversões', M.conv, MC?.conv, 'num'),
+    kcard('Custo por Conversão', M.cpa, MC?.cpa, 'currency'),
+    kcard('Novos Seguidores', M.foll, MC?.foll, 'num'),
+    kcard('Custo por Seguidor', M.cpFoll, MC?.cpFoll, 'currency'),
+    kcard('Visitas ao Perfil', M.visits, MC?.visits, 'num'),
+    kcard('Custo por Visita ao Perfil', M.cpVis, MC?.cpVis, 'currency'),
+    kcard('ThruPlay', M.thru, MC?.thru, 'num'),
+    kcard('Custo por ThruPlay', M.cpThru, MC?.cpThru, 'currency','',true),
+  ].join('');
+}
+
+// ══════════════════════════════════════════
+// CHARTS
+// ══════════════════════════════════════════
+Chart.defaults.color = '#6b82a0';
+Chart.defaults.font.family = 'Montserrat';
+Chart.defaults.font.size = 10;
+
+function destroyChart(id) { if(charts[id]){ charts[id].destroy(); delete charts[id]; } }
+
+function mkChart(id, type, labels, datasets, extra={}) {
+  destroyChart(id);
+  const el = document.getElementById(id);
+  if (!el) return;
+  charts[id] = new Chart(el, {
+    type,
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color:'#a8b8cc', font:{family:'Montserrat',size:10,weight:'600'}, boxWidth:12 } } },
+      scales: (type==='doughnut'||type==='pie') ? {} : {
+        x: { ticks:{color:'#4a617a',font:{family:'Montserrat',size:9}}, grid:{color:'rgba(255,255,255,0.04)'} },
+        y: { ticks:{color:'#4a617a',font:{family:'Montserrat',size:9}}, grid:{color:'rgba(255,255,255,0.04)'} }
+      },
+      ...extra
+    }
+  });
+}
+
+function getDailyData(rows, key) {
+  const byDate = {};
+  rows.forEach(r => {
+    const d = isoDate(r.date);
+    if (!byDate[d]) byDate[d] = 0;
+    byDate[d] += r[key]||0;
+  });
+  const sorted = Object.keys(byDate).sort();
+  return { labels: sorted.map(d=>d.slice(5).replace('-','/')), values: sorted.map(d=>byDate[d]) };
+}
+
+function renderChartsGeral(G, M) {
+  // Gasto diário
+  const gd = getDailyData(filtGoogle, 'cost');
+  const md = getDailyData(filtMeta,   'cost');
+  const allLabels = [...new Set([...gd.labels,...md.labels])].sort();
+  mkChart('ch-gasto','line', allLabels, [
+    { label:'Google Ads', data: allLabels.map(l=>gd.labels.includes(l)?gd.values[gd.labels.indexOf(l)]:0), borderColor:'#4285F4', backgroundColor:'rgba(66,133,244,0.07)', tension:.4, fill:true },
+    { label:'Meta Ads',   data: allLabels.map(l=>md.labels.includes(l)?md.values[md.labels.indexOf(l)]:0), borderColor:'#0866FF', backgroundColor:'rgba(8,102,255,0.07)', tension:.4, fill:true },
+  ]);
+
+  // Donut
+  mkChart('ch-donut','doughnut',['Google Ads','Meta Ads'],[{
+    data:[G.cost, M.cost],
+    backgroundColor:['#162F65','#2a5cbf'],
+    borderColor:['#0e1620','#0e1620'], borderWidth:4
+  }]);
+
+  // Leads & Conv
+  mkChart('ch-leads','bar',['Google Ads','Meta Ads'],[
+    { label:'Conversões', data:[G.conv,M.conv], backgroundColor:['rgba(22,47,101,0.85)','rgba(42,92,191,0.85)'], borderRadius:6 },
+    { label:'Leads (Meta)', data:[0,M.leads], backgroundColor:['transparent','rgba(0,230,118,0.6)'], borderRadius:6 },
+  ]);
+}
+
+function renderChartsGoogle() {
+  const cd = getDailyData(filtGoogle, 'clicks');
+  const id = getDailyData(filtGoogle, 'impr');
+  const allL = [...new Set([...cd.labels,...id.labels])].sort();
+  mkChart('ch-gclicks','line', allL, [
+    { label:'Cliques', data:allL.map(l=>cd.labels.includes(l)?cd.values[cd.labels.indexOf(l)]:0), borderColor:'#fff', tension:.4 },
+    { label:'Impressões', data:allL.map(l=>id.labels.includes(l)?id.values[id.labels.indexOf(l)]:0), borderColor:'#4285F4', tension:.4, yAxisID:'y1' },
+  ], { scales:{
+    x:{ticks:{color:'#4a617a',font:{family:'Montserrat',size:9}},grid:{color:'rgba(255,255,255,0.04)'}},
+    y:{ticks:{color:'#4a617a',font:{family:'Montserrat',size:9}},grid:{color:'rgba(255,255,255,0.04)'}},
+    y1:{position:'right',ticks:{color:'#4a617a',font:{family:'Montserrat',size:9}},grid:{display:false}}
+  }});
+
+  // CTR por campanha
+  const byCamp = {};
+  filtGoogle.forEach(r => { if(!byCamp[r.campaign]) byCamp[r.campaign]={clicks:0,impr:0}; byCamp[r.campaign].clicks+=r.clicks; byCamp[r.campaign].impr+=r.impr; });
+  const camps = Object.keys(byCamp);
+  mkChart('ch-gctr','bar', camps, [{
+    label:'CTR %',
+    data: camps.map(c => safe(byCamp[c].clicks, byCamp[c].impr)*100),
+    backgroundColor:'rgba(22,47,101,0.85)', borderRadius:6
+  }]);
+
+  // CPA por campanha
+  const byCamp2 = {};
+  filtGoogle.forEach(r => { if(!byCamp2[r.campaign]) byCamp2[r.campaign]={cost:0,conv:0}; byCamp2[r.campaign].cost+=r.cost; byCamp2[r.campaign].conv+=r.conv; });
+  const camps2 = Object.keys(byCamp2);
+  mkChart('ch-gcpa','bar', camps2, [{
+    label:'CPA (R$)',
+    data: camps2.map(c => safe(byCamp2[c].cost, byCamp2[c].conv)),
+    backgroundColor:'rgba(42,92,191,0.85)', borderRadius:6
+  }]);
+}
+
+function renderChartsMeta() {
+  const rd = getDailyData(filtMeta, 'reach');
+  const id = getDailyData(filtMeta, 'impr');
+  const allL = [...new Set([...rd.labels,...id.labels])].sort();
+  mkChart('ch-mreach','line', allL, [
+    { label:'Alcance', data:allL.map(l=>rd.labels.includes(l)?rd.values[rd.labels.indexOf(l)]:0), borderColor:'#2a5cbf', tension:.4 },
+    { label:'Impressões', data:allL.map(l=>id.labels.includes(l)?id.values[id.labels.indexOf(l)]:0), borderColor:'#0866FF', tension:.4, yAxisID:'y1' },
+  ], { scales:{
+    x:{ticks:{color:'#4a617a',font:{family:'Montserrat',size:9}},grid:{color:'rgba(255,255,255,0.04)'}},
+    y:{ticks:{color:'#4a617a',font:{family:'Montserrat',size:9}},grid:{color:'rgba(255,255,255,0.04)'}},
+    y1:{position:'right',ticks:{color:'#4a617a',font:{family:'Montserrat',size:9}},grid:{display:false}}
+  }});
+
+  const ld = getDailyData(filtMeta, 'leads');
+  mkChart('ch-mleads','bar', ld.labels, [{
+    label:'Leads', data:ld.values, backgroundColor:'rgba(22,47,101,0.85)', borderRadius:6
+  }]);
+
+  // CPL por dia
+  const byDate = {};
+  filtMeta.forEach(r => {
+    const d = isoDate(r.date);
+    if(!byDate[d]) byDate[d]={cost:0,leads:0};
+    byDate[d].cost+=r.cost; byDate[d].leads+=r.leads;
+  });
+  const dDates = Object.keys(byDate).sort();
+  mkChart('ch-mcpl','line', dDates.map(d=>d.slice(5).replace('-','/')), [{
+    label:'CPL (R$)',
+    data: dDates.map(d=>safe(byDate[d].cost,byDate[d].leads)),
+    borderColor:'#00e676', backgroundColor:'rgba(0,230,118,0.06)', tension:.4, fill:true
+  }]);
+}
+
+// ══════════════════════════════════════════
+// TABLES
+// ══════════════════════════════════════════
+function renderTableGoogle() {
+  if (!filtGoogle.length) { document.getElementById('tb-google').innerHTML='<tr><td colspan="10" class="nodata">Sem dados para o período selecionado</td></tr>'; return; }
+
+  // agrupa por campanha
+  const by = {};
+  filtGoogle.forEach(r => {
+    if(!by[r.campaign]) by[r.campaign]={campaign:r.campaign,cost:0,impr:0,clicks:0,conv:0,convVal:0};
+    by[r.campaign].cost+=r.cost; by[r.campaign].impr+=r.impr;
+    by[r.campaign].clicks+=r.clicks; by[r.campaign].conv+=r.conv;
+    by[r.campaign].convVal+=r.convVal;
+  });
+  const rows = Object.values(by);
+
+  document.getElementById('th-google').innerHTML = `<tr>${['Campanha','Gasto','Impressões','Cliques','CTR','Conv.','CPA','Valor Conv.','ROAS'].map(h=>`<th>${h}</th>`).join('')}</tr>`;
+  document.getElementById('tb-google').innerHTML = rows.map(r => {
+    const ctr  = safe(r.clicks,r.impr)*100;
+    const cpa  = safe(r.cost,r.conv);
+    const roas = safe(r.convVal,r.cost);
+    return `<tr>
+      <td class="tdm">${r.campaign}</td>
+      <td>${fmtBRL(r.cost)}</td><td>${fmtNum(r.impr)}</td><td>${fmtNum(r.clicks)}</td>
+      <td>${fmtPct(ctr)}</td><td>${fmtNum(r.conv)}</td>
+      <td>${cpa?fmtBRL(cpa):'–'}</td><td>${r.convVal?fmtBRL(r.convVal):'–'}</td>
+      <td>${roas?roas.toFixed(2)+'x':'–'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderTableMeta() {
+  if (!filtMeta.length) { document.getElementById('tb-meta').innerHTML='<tr><td colspan="10" class="nodata">Sem dados para o período selecionado</td></tr>'; return; }
+
+  const cols = ['Data','Impressões','Alcance','Cliques','Link Clicks','CTR','Gasto','Leads','CPL','Conv.'];
+  document.getElementById('th-meta').innerHTML = `<tr>${cols.map(h=>`<th>${h}</th>`).join('')}</tr>`;
+  document.getElementById('tb-meta').innerHTML = filtMeta.slice(0,50).map(r => `<tr>
+    <td class="tdm">${fmtDate(r.date)}</td>
+    <td>${fmtNum(r.impr)}</td><td>${fmtNum(r.reach)}</td>
+    <td>${fmtNum(r.clicks)}</td><td>${fmtNum(r.lClicks)}</td>
+    <td>${fmtPct(r.ctr)}</td><td>${fmtBRL(r.cost)}</td>
+    <td>${fmtNum(r.leads)}</td><td>${r.leads?fmtBRL(safe(r.cost,r.leads)):'–'}</td>
+    <td>${fmtNum(r.conv)}</td>
+  </tr>`).join('');
+}
+
+// ══════════════════════════════════════════
+// UI HELPERS
+// ══════════════════════════════════════════
+function switchTab(id, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('on'));
+  document.getElementById('panel-'+id).classList.add('on');
+  btn.classList.add('on');
+}
+
+function showLoading(v) { document.getElementById('loading-state').style.display = v?'flex':'none'; }
+function showError(msg) { const e=document.getElementById('error-box'); e.style.display='block'; e.textContent=msg; }
+function hideError() { document.getElementById('error-box').style.display='none'; }
+function reloadData() { document.getElementById('content').style.display='none'; init(); }
+
+function exportCSV() {
+  const G = aggGoogle(filtGoogle);
+  const M = aggMeta(filtMeta);
+  const rows = [
+    ['KPI','Google Ads','Meta Ads','Total'],
+    ['Gasto',G.cost.toFixed(2),M.cost.toFixed(2),(G.cost+M.cost).toFixed(2)],
+    ['Impressões',G.impr,M.impr,G.impr+M.impr],
+    ['Cliques',G.clicks,M.clicks,G.clicks+M.clicks],
+    ['CTR (%)',G.ctr.toFixed(2),M.ctr.toFixed(2),''],
+    ['Conversões',G.conv,M.conv,G.conv+M.conv],
+    ['Leads','',M.leads,M.leads],
+    ['CPL','',M.cpl.toFixed(2),''],
+    ['CPA',G.cpa.toFixed(2),M.cpa.toFixed(2),''],
+    ['ROAS',G.roas.toFixed(2),'',''],
+    ['Alcance','',M.reach,''],
+    ['ThruPlay','',M.thru,''],
+    ['Novos Seguidores','',M.foll,''],
+  ];
+  const csv = rows.map(r=>r.join(';')).join('\n');
+  const blob = new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='performance-boabaid.csv'; a.click();
+}
+
+// ── START ──
+init();
+</script>
+</body>
+</html>
