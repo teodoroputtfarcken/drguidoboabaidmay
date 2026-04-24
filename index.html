@@ -153,7 +153,7 @@ tr:hover td{background:rgba(22,47,101,0.1)}
 <!-- TOPBAR -->
 <header class="topbar">
   <div class="tb-left">
-      <div class="tb-logo" style="padding:0;overflow:hidden;background:transparent"><img src="logo.png" style="width:80px;height:80px;object-fit:contain;border-radius:8px"></div>
+    <div class="tb-logo" style="padding:0;overflow:hidden;background:transparent"><img src="logo.png" style="width:80px;height:80px;object-fit:contain;border-radius:8px"></div>
     <div class="tb-info">
       <strong>Clínica Dr. Guido Boabaid May</strong>
       <small>Google Ads + Meta Ads · Dashboard de Performance</small>
@@ -381,12 +381,12 @@ function mapMeta(rows) {
     const impCol     = findCol(r, ['Impressi','Impress','impress']);
     const reachCol   = findCol(r, ['Reach','Alcance','reach']);
     const clickCol   = findCol(r, ['Clicks','Cliques','clicks','click']);
-    const linkCol    = findCol(r, ['Link click','link click','clique no link']);
+    const linkCol    = findCol(r, ['Link clicks','Link click','link click','clique no link']);
     const ctrCol     = findCol(r, ['CTR','ctr']);
-    const costCol    = findCol(r, ['Amount spent','Valor gasto','Gasto','spend','cost']);
-    const leadCol    = findCol(r, ['Lead','lead']);
-    const cplCol     = findCol(r, ['Cost per lead','CPL','custo por lead']);
-    const convCol    = findCol(r, ['Result','Resultado','conv','result']);
+    const costCol    = findCol(r, ['Amount spent','Valor gasto','Gasto','spend']);
+    const leadCol    = findCol(r, ['Leads','Lead','lead']);
+    const cplCol     = findCol(r, ['Cost per Lead','Cost per lead','CPL','custo por lead']);
+    const convCol    = findCol(r, ['Registrations completed','Result','Resultado','conv','result']);
     const cpaCol     = findCol(r, ['Cost per result','CPA','custo por result']);
     const follCol    = findCol(r, ['Follow','Seguidor','follow']);
     const profileCol = findCol(r, ['Profile visit','Visita','perfil']);
@@ -695,8 +695,8 @@ function renderKPIMeta(M, MC) {
     kcard('Custo por Conversão', M.cpa, MC?.cpa, 'currency'),
     kcard('Novos Seguidores', M.foll, MC?.foll, 'num'),
     kcard('Custo por Seguidor', M.cpFoll, MC?.cpFoll, 'currency'),
-    kcard('Visitas ao Perfil', M.visits, MC?.visits, 'num'),
-    kcard('Custo por Visita ao Perfil', M.cpVis, MC?.cpVis, 'currency'),
+    kcard('Engajamento (Posts)', M.visits, MC?.visits, 'num'),
+    kcard('Custo por Engajamento', M.cpVis, MC?.cpVis, 'currency'),
   ].join('');
 }
 
