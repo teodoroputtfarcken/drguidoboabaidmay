@@ -246,9 +246,14 @@ tr:hover td{background:rgba(22,47,101,0.1)}
       </div>
       <div class="kgrid" id="kg-geral"></div>
       <div class="cgrid">
-        <div class="ccard wide"><div class="ctitle">Gasto Diário — Google Ads vs Meta Ads</div><canvas id="ch-gasto"></canvas></div>
-        <div class="ccard"><div class="ctitle">Distribuição de Gasto por Plataforma</div><canvas id="ch-donut"></canvas></div>
-        <div class="ccard"><div class="ctitle">Conversões</div><canvas id="ch-leads"></canvas></div>
+        <div class="ccard wide"><div class="ctitle">Evolução Diária do Investimento</div><canvas id="ch-gasto"></canvas></div>
+        <div class="ccard"><div class="ctitle">Investimento Total por Plataforma</div><canvas id="ch-donut"></canvas></div>
+        <div class="ccard"><div class="ctitle">Participação no Total de Conversões</div><canvas id="ch-conv-pizza"></canvas></div>
+        <div class="ccard"><div class="ctitle">Leads & Conversões por Plataforma</div><canvas id="ch-leads"></canvas></div>
+        <div class="ccard"><div class="ctitle">CPL por Plataforma</div><canvas id="ch-cpl-plat"></canvas></div>
+        <div class="ccard wide"><div class="ctitle">Investimento x Leads (barras + linha)</div><canvas id="ch-invest-leads"></canvas></div>
+        <div class="ccard"><div class="ctitle">ROAS por Plataforma</div><canvas id="ch-roas-plat"></canvas></div>
+        <div class="ccard wide"><div class="ctitle">Funil Geral — Impressões → Cliques → Leads → Conversões</div><canvas id="ch-funil"></canvas></div>
       </div>
     </div>
 
@@ -283,7 +288,7 @@ tr:hover td{background:rgba(22,47,101,0.1)}
         <div class="ccard"><div class="ctitle">Custo por Lead por Dia</div><canvas id="ch-mcpl"></canvas></div>
       </div>
       <div class="tcard">
-        <div class="thead-bar"><div class="sec-title" style="margin:0">Dados Meta Ads por Data</div></div>
+        <div class="thead-bar"><div class="sec-title" style="margin:0">Indicadores por Campanha</div></div>
         <div class="tscroll"><table><thead id="th-meta"></thead><tbody id="tb-meta"></tbody></table></div>
       </div>
     </div>
@@ -379,20 +384,20 @@ function mapMeta(rows) {
   return rows.map(r => {
     const campCol = findCol(r, ['Campaign name','Campaign','Campanha','Ad Set Name','campaign','Ad set name']);
     const dateCol    = findCol(r, ['Day','Date','Data','Dia','Reporting']);
-    const impCol     = findCol(r, ['Impressi','Impress','impress']);
-    const reachCol   = findCol(r, ['Reach','Alcance','reach']);
-    const clickCol   = findCol(r, ['Clicks','Cliques','clicks','click']);
-    const linkCol    = findCol(r, ['Link clicks','Link click','link click','clique no link']);
-    const ctrCol     = findCol(r, ['CTR','ctr']);
+    const impCol     = findCol(r, ['Impressions','Impressi','Impress']);
+    const reachCol   = findCol(r, ['Reach']);
+    const clickCol   = findCol(r, ['Clicks (all)','Clicks','Cliques']);
+    const linkCol    = findCol(r, ['Link clicks']);
+    const ctrCol     = findCol(r, ['CTR (all)','CTR']);
     const costCol    = findCol(r, ['Amount spent']);
     const leadCol    = findCol(r, ['Leads']);
     const cplCol     = findCol(r, ['Cost per Lead']);
     const convCol    = findCol(r, ['Registrations completed','Result','Resultado']);
-    const cpaCol     = findCol(r, ['Cost per result','CPA','custo por result']);
-    const follCol    = findCol(r, ['Follow','Seguidor','follow']);
-    const profileCol = findCol(r, ['Profile visit','Visita','perfil']);
-    const thruCol    = findCol(r, ['ThruPlay','thruplay','Thru']);
-    const cptCol     = findCol(r, ['Cost per ThruPlay','custo por thru']);
+    const cpaCol     = findCol(r, ['Cost per result','CPA']);
+    const follCol    = findCol(r, ['Page likes or followers','Page like or follower']);
+    const profileCol = findCol(r, ['Page engagement','Post engagement']);
+    const thruCol    = findCol(r, ['Video plays at 100%','ThruPlay','thruplay']);
+    const cptCol     = findCol(r, ['Cost per ThruPlay']);
 
     return {
       date:        dateCol    ? parseDate(r[dateCol])    : null,
@@ -418,9 +423,34 @@ function mapMeta(rows) {
 
 // ── PARSERS ──
 function parseNum(v) {
-  if (!v) return 0;
-  // Remove R$, %, espaços, troca vírgula por ponto
-  const s = String(v).replace(/[R$\s%]/g,'').replace('.','').replace(',','.');
+  if (!v || v === '' || v === '-' || v === '–') return 0;
+  let s = String(v).trim();
+  // Remove currency symbols and spaces
+  s = s.replace(/[R$\s%]/g, '');
+  // Detect format: if has comma and dot, determine which is decimal
+  // European: 1.234,56 → 1234.56
+  // US/BR export: 1,234.56 → 1234.56
+  if (s.includes(',') && s.includes('.')) {
+    const lastComma = s.lastIndexOf(',');
+    const lastDot   = s.lastIndexOf('.');
+    if (lastComma > lastDot) {
+      // European format: dots are thousands, comma is decimal
+      s = s.replace(/\./g, '').replace(',', '.');
+    } else {
+      // US format: commas are thousands, dot is decimal
+      s = s.replace(/,/g, '');
+    }
+  } else if (s.includes(',')) {
+    // Only comma: could be decimal (1,5) or thousands (1,500)
+    const parts = s.split(',');
+    if (parts[1] && parts[1].length <= 2) {
+      s = s.replace(',', '.'); // decimal
+    } else {
+      s = s.replace(',', ''); // thousands separator
+    }
+  }
+  // Remove remaining non-numeric except dot and minus
+  s = s.replace(/[^0-9.\-]/g, '');
   return parseFloat(s) || 0;
 }
 
@@ -740,7 +770,7 @@ function getDailyData(rows, key) {
 }
 
 function renderChartsGeral(G, M) {
-  // Gasto diário
+  // ── 1. Evolução diária do investimento (linha)
   const gd = getDailyData(filtGoogle, 'cost');
   const md = getDailyData(filtMeta,   'cost');
   const allLabels = [...new Set([...gd.labels,...md.labels])].sort();
@@ -749,18 +779,93 @@ function renderChartsGeral(G, M) {
     { label:'Meta Ads',   data: allLabels.map(l=>md.labels.includes(l)?md.values[md.labels.indexOf(l)]:0), borderColor:'#ffffff', backgroundColor:'rgba(255,255,255,0.05)', tension:.4, fill:true },
   ]);
 
-  // Donut
+  // ── 2. Investimento total por plataforma (rosca)
   mkChart('ch-donut','doughnut',['Google Ads','Meta Ads'],[{
     data:[G.cost, M.cost],
     backgroundColor:['#062466','#2854AD'],
     borderColor:['#0e1620','#0e1620'], borderWidth:4
   }]);
 
-  // Leads & Conv
+  // ── 3. Participação no total de conversões (pizza)
+  const totalConv = G.conv + M.conv + M.leads;
+  mkChart('ch-conv-pizza','doughnut',['Google Conv.','Meta Conv.','Meta Leads'],[{
+    data:[G.conv, M.conv, M.leads],
+    backgroundColor:['#062466','#2854AD','#5B8FE8'],
+    borderColor:['#0e1620','#0e1620','#0e1620'], borderWidth:4
+  }]);
+
+  // ── 4. Leads & conversões por plataforma (barras verticais)
   mkChart('ch-leads','bar',['Google Ads','Meta Ads'],[
-    { label:'Conversões', data:[G.conv,M.conv], backgroundColor:['#2854AD','#5B8FE8'], borderRadius:6 },
-    { label:'Leads (Meta)', data:[0,M.leads], backgroundColor:['transparent','rgba(0,230,118,0.6)'], borderRadius:6 },
+    { label:'Conversões', data:[G.conv, M.conv], backgroundColor:['#062466','#062466'], borderRadius:6 },
+    { label:'Leads',      data:[0, M.leads],      backgroundColor:['transparent','#2854AD'], borderRadius:6 },
   ]);
+
+  // ── 5. CPL por plataforma (barras horizontais)
+  const gCPL = safe(G.cost, G.conv);
+  const mCPL = safe(M.cost, M.leads);
+  mkChart('ch-cpl-plat','bar',['Google Ads (CPA)','Meta Ads (CPL)'],[{
+    label:'Custo por Lead / Conversão (R$)',
+    data:[gCPL, mCPL],
+    backgroundColor:['#062466','#2854AD'],
+    borderRadius:6
+  }],{ indexAxis:'y' });
+
+  // ── 6. Investimento x Leads combinado (barras + linha)
+  const gdLeads = getDailyData(filtMeta, 'leads');
+  const gdCost  = getDailyData(filtMeta, 'cost');
+  const combLabels = [...new Set([...gdCost.labels,...gdLeads.labels])].sort();
+  mkChart('ch-invest-leads','bar', combLabels, [
+    {
+      type:'bar',
+      label:'Investimento Meta (R$)',
+      data: combLabels.map(l=>gdCost.labels.includes(l)?gdCost.values[gdCost.labels.indexOf(l)]:0),
+      backgroundColor:'rgba(6,36,102,0.8)', borderRadius:4, yAxisID:'y'
+    },
+    {
+      type:'line',
+      label:'Leads',
+      data: combLabels.map(l=>gdLeads.labels.includes(l)?gdLeads.values[gdLeads.labels.indexOf(l)]:0),
+      borderColor:'#ffffff', backgroundColor:'rgba(255,255,255,0.06)', tension:.4, yAxisID:'y1'
+    }
+  ],{
+    scales:{
+      x:{ticks:{color:'#ffffff',font:{family:'Montserrat',size:8}},grid:{color:'rgba(255,255,255,0.04)'}},
+      y:{ticks:{color:'#ffffff',font:{family:'Montserrat',size:8}},grid:{color:'rgba(255,255,255,0.04)'},title:{display:true,text:'R$',color:'#6b82a0',font:{size:9}}},
+      y1:{position:'right',ticks:{color:'#ffffff',font:{family:'Montserrat',size:8}},grid:{display:false},title:{display:true,text:'Leads',color:'#6b82a0',font:{size:9}}}
+    }
+  });
+
+  // ── 7. ROAS por plataforma (barras)
+  const gROAS = safe(G.convVal, G.cost);
+  // Meta não tem convVal direto, usa leads como proxy de valor se convVal=0
+  const mROAS = M.cost > 0 ? safe(M.conv * 100, M.cost) : 0; // estimativa se não houver valor real
+  mkChart('ch-roas-plat','bar',['Google Ads','Meta Ads'],[{
+    label:'ROAS',
+    data:[gROAS, mROAS],
+    backgroundColor:['#062466','#2854AD'], borderRadius:6
+  }]);
+
+  // ── 8. Funil geral (barras horizontais decrescentes)
+  const fImpr  = G.impr  + M.impr;
+  const fClick = G.clicks + M.clicks;
+  const fLeads = M.leads;
+  const fConv  = G.conv  + M.conv;
+  mkChart('ch-funil','bar',
+    ['Impressões','Cliques','Leads','Conversões'],
+    [{
+      label:'Funil',
+      data:[fImpr, fClick, fLeads, fConv],
+      backgroundColor:['#062466','#1a3d8a','#2854AD','#5B8FE8'],
+      borderRadius:6
+    }],
+    { indexAxis:'y',
+      plugins:{ legend:{ display:false } },
+      scales:{
+        x:{ticks:{color:'#ffffff',font:{family:'Montserrat',size:8}},grid:{color:'rgba(255,255,255,0.04)'}},
+        y:{ticks:{color:'#ffffff',font:{family:'Montserrat',size:9,weight:'700'}},grid:{color:'rgba(255,255,255,0.04)'}}
+      }
+    }
+  );
 }
 
 function renderChartsGoogle() {
@@ -862,11 +967,11 @@ function renderTableGoogle() {
 function renderTableMeta() {
   if (!filtMeta.length) { document.getElementById('tb-meta').innerHTML='<tr><td colspan="9" class="nodata">Sem dados para o período selecionado</td></tr>'; return; }
 
-  // Agrupa por campanha
+  // Agrupa por campanha — CTR calculado como clicks/impr (média ponderada real)
   const by = {};
   filtMeta.forEach(r => {
     const key = r.campaign || '(sem campanha)';
-    if (!by[key]) by[key] = { campaign: key, impr:0, reach:0, clicks:0, cost:0, leads:0, conv:0, foll:0 };
+    if (!by[key]) by[key] = { campaign: key, impr:0, reach:0, clicks:0, cost:0, leads:0, conv:0, foll:0, days:0 };
     by[key].impr    += r.impr;
     by[key].reach   += r.reach;
     by[key].clicks  += r.clicks;
@@ -874,6 +979,7 @@ function renderTableMeta() {
     by[key].leads   += r.leads;
     by[key].conv    += r.conv;
     by[key].foll    += r.followers;
+    by[key].days    += 1;
   });
 
   const rows = Object.values(by);
@@ -889,6 +995,7 @@ function renderTableMeta() {
   document.getElementById('th-meta').innerHTML = `<tr>${cols.map(h=>`<th>${h}</th>`).join('')}</tr>`;
 
   const rowHtml = rows.map(r => {
+    // CTR = cliques totais / impressões totais * 100 (média ponderada real)
     const ctr = safe(r.clicks, r.impr) * 100;
     return `<tr>
       <td class="tdm">${r.campaign}</td>
@@ -904,6 +1011,7 @@ function renderTableMeta() {
     </tr>`;
   }).join('');
 
+  // CTR total também como média ponderada real
   const totCtr = safe(tot.clicks, tot.impr) * 100;
   const totRow = `<tr style="background:rgba(22,47,101,0.35);font-weight:800;">
     <td class="tdm" style="color:#ffd600;font-weight:900;">TOTAL</td>
