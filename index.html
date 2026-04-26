@@ -70,6 +70,7 @@ body{font-family:'Montserrat',sans-serif;background:var(--gray-900);color:var(--
 .fg input,.fg select{width:100%;background:var(--gray-800);border:1px solid var(--border);color:var(--white);font-family:'Montserrat',sans-serif;font-size:11px;font-weight:600;padding:9px 11px;border-radius:7px;outline:none;transition:border-color .2s;appearance:none}
 .fg input:focus,.fg select:focus{border-color:var(--blue-light)}
 .fg select option{background:var(--gray-800)}
+.filter-disabled{opacity:0.3!important;cursor:not-allowed!important;pointer-events:none;border-color:rgba(255,255,255,0.03)!important;color:var(--gray-500)!important;background:rgba(255,255,255,0.02)!important;}
 .factions{display:flex;gap:8px;align-items:flex-end;flex-shrink:0}
 .fdivider{height:1px;background:var(--border);margin:14px 0 12px}
 .compare-wrap{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -383,10 +384,10 @@ function mapMeta(rows) {
     const clickCol   = findCol(r, ['Clicks','Cliques','clicks','click']);
     const linkCol    = findCol(r, ['Link clicks','Link click','link click','clique no link']);
     const ctrCol     = findCol(r, ['CTR','ctr']);
-    const costCol    = findCol(r, ['Amount spent','Valor gasto','Gasto','spend']);
-    const leadCol    = findCol(r, ['Leads','Lead','lead']);
-    const cplCol     = findCol(r, ['Cost per Lead','Cost per lead','CPL','custo por lead']);
-    const convCol    = findCol(r, ['Registrations completed','Result','Resultado','conv','result']);
+    const costCol    = findCol(r, ['Amount spent']);
+    const leadCol    = findCol(r, ['Leads']);
+    const cplCol     = findCol(r, ['Cost per Lead']);
+    const convCol    = findCol(r, ['Registrations completed','Result','Resultado']);
     const cpaCol     = findCol(r, ['Cost per result','CPA','custo por result']);
     const follCol    = findCol(r, ['Follow','Seguidor','follow']);
     const profileCol = findCol(r, ['Profile visit','Visita','perfil']);
@@ -532,9 +533,9 @@ function applyFilters() {
   const doCmp   = document.getElementById('cmp-on').checked;
 
   filtGoogle = rawGoogle.filter(r => inRange(r.date, start, end) && (!gCamp || r.campaign === gCamp));
-  filtMeta   = rawMeta.filter(r   => inRange(r.date, start, end));
+  filtMeta   = rawMeta.filter(r   => inRange(r.date, start, end) && (!mCamp || r.campaign === mCamp));
   filtCompG  = doCmp ? rawGoogle.filter(r => inRange(r.date, cStart, cEnd) && (!gCamp || r.campaign === gCamp)) : [];
-  filtCompM  = doCmp ? rawMeta.filter(r   => inRange(r.date, cStart, cEnd)) : [];
+  filtCompM  = doCmp ? rawMeta.filter(r   => inRange(r.date, cStart, cEnd) && (!mCamp || r.campaign === mCamp)) : [];
 
   document.getElementById('h-period').textContent  = `${document.getElementById('f-start').value.split('-').reverse().join('/')} – ${document.getElementById('f-end').value.split('-').reverse().join('/')}`;
   if (doCmp) document.getElementById('h-compare').textContent = `${document.getElementById('c-start').value.split('-').reverse().join('/')} – ${document.getElementById('c-end').value.split('-').reverse().join('/')}`;
@@ -696,7 +697,6 @@ function renderKPIMeta(M, MC) {
     kcard('Novos Seguidores', M.foll, MC?.foll, 'num'),
     kcard('Custo por Seguidor', M.cpFoll, MC?.cpFoll, 'currency'),
     kcard('Engajamento (Posts)', M.visits, MC?.visits, 'num'),
-    kcard('Custo por Engajamento', M.cpVis, MC?.cpVis, 'currency'),
   ].join('');
 }
 
@@ -862,16 +862,63 @@ function renderTableGoogle() {
 function renderTableMeta() {
   if (!filtMeta.length) { document.getElementById('tb-meta').innerHTML='<tr><td colspan="9" class="nodata">Sem dados para o período selecionado</td></tr>'; return; }
 
-  const cols = ['Data','Impressões','Alcance','Cliques','CTR','Gasto','Leads','CPL','Conv.'];
+  // Agrupa por campanha
+  const by = {};
+  filtMeta.forEach(r => {
+    const key = r.campaign || '(sem campanha)';
+    if (!by[key]) by[key] = { campaign: key, impr:0, reach:0, clicks:0, cost:0, leads:0, conv:0, foll:0 };
+    by[key].impr    += r.impr;
+    by[key].reach   += r.reach;
+    by[key].clicks  += r.clicks;
+    by[key].cost    += r.cost;
+    by[key].leads   += r.leads;
+    by[key].conv    += r.conv;
+    by[key].foll    += r.followers;
+  });
+
+  const rows = Object.values(by);
+
+  // Totais
+  const tot = rows.reduce((a, r) => {
+    a.impr += r.impr; a.reach += r.reach; a.clicks += r.clicks;
+    a.cost += r.cost; a.leads += r.leads; a.conv += r.conv; a.foll += r.foll;
+    return a;
+  }, { impr:0, reach:0, clicks:0, cost:0, leads:0, conv:0, foll:0 });
+
+  const cols = ['Campanha','Impressões','Alcance','Cliques','CTR','Gasto','Leads','CPL','Conv.','Seguidores'];
   document.getElementById('th-meta').innerHTML = `<tr>${cols.map(h=>`<th>${h}</th>`).join('')}</tr>`;
-  document.getElementById('tb-meta').innerHTML = filtMeta.slice(0,50).map(r => `<tr>
-    <td class="tdm">${fmtDate(r.date)}</td>
-    <td>${fmtNum(r.impr)}</td><td>${fmtNum(r.reach)}</td>
-    <td>${fmtNum(r.clicks)}</td>
-    <td>${fmtPct(r.ctr)}</td><td>${fmtBRL(r.cost)}</td>
-    <td>${fmtNum(r.leads)}</td><td>${r.leads?fmtBRL(safe(r.cost,r.leads)):'–'}</td>
-    <td>${fmtNum(r.conv)}</td>
-  </tr>`).join('');
+
+  const rowHtml = rows.map(r => {
+    const ctr = safe(r.clicks, r.impr) * 100;
+    return `<tr>
+      <td class="tdm">${r.campaign}</td>
+      <td>${fmtNum(r.impr)}</td>
+      <td>${fmtNum(r.reach)}</td>
+      <td>${fmtNum(r.clicks)}</td>
+      <td>${fmtPct(ctr)}</td>
+      <td>${fmtBRL(r.cost)}</td>
+      <td>${fmtNum(r.leads)}</td>
+      <td>${r.leads ? fmtBRL(safe(r.cost, r.leads)) : '–'}</td>
+      <td>${fmtNum(r.conv)}</td>
+      <td>${fmtNum(r.foll)}</td>
+    </tr>`;
+  }).join('');
+
+  const totCtr = safe(tot.clicks, tot.impr) * 100;
+  const totRow = `<tr style="background:rgba(22,47,101,0.35);font-weight:800;">
+    <td class="tdm" style="color:#ffd600;font-weight:900;">TOTAL</td>
+    <td style="color:#fff;font-weight:800;">${fmtNum(tot.impr)}</td>
+    <td style="color:#fff;font-weight:800;">${fmtNum(tot.reach)}</td>
+    <td style="color:#fff;font-weight:800;">${fmtNum(tot.clicks)}</td>
+    <td style="color:#fff;font-weight:800;">${fmtPct(totCtr)}</td>
+    <td style="color:#fff;font-weight:800;">${fmtBRL(tot.cost)}</td>
+    <td style="color:#fff;font-weight:800;">${fmtNum(tot.leads)}</td>
+    <td style="color:#fff;font-weight:800;">${tot.leads ? fmtBRL(safe(tot.cost, tot.leads)) : '–'}</td>
+    <td style="color:#fff;font-weight:800;">${fmtNum(tot.conv)}</td>
+    <td style="color:#fff;font-weight:800;">${fmtNum(tot.foll)}</td>
+  </tr>`;
+
+  document.getElementById('tb-meta').innerHTML = rowHtml + totRow;
 }
 
 // ══════════════════════════════════════════
@@ -882,6 +929,33 @@ function switchTab(id, btn) {
   document.querySelectorAll('.tab').forEach(b => b.classList.remove('on'));
   document.getElementById('panel-'+id).classList.add('on');
   btn.classList.add('on');
+
+  const gSel = document.getElementById('f-campaign');
+  const mSel = document.getElementById('f-metacampaign');
+
+  if (id === 'google') {
+    // Habilita Google, desabilita Meta
+    gSel.disabled = false;
+    gSel.classList.remove('filter-disabled');
+    mSel.disabled = true;
+    mSel.classList.add('filter-disabled');
+    mSel.value = '';
+  } else if (id === 'meta') {
+    // Habilita Meta, desabilita Google
+    mSel.disabled = false;
+    mSel.classList.remove('filter-disabled');
+    gSel.disabled = true;
+    gSel.classList.add('filter-disabled');
+    gSel.value = '';
+  } else {
+    // Visão Geral: ambos habilitados
+    gSel.disabled = false;
+    gSel.classList.remove('filter-disabled');
+    mSel.disabled = false;
+    mSel.classList.remove('filter-disabled');
+  }
+
+  applyFilters();
 }
 
 function showLoading(v) { document.getElementById('loading-state').style.display = v?'flex':'none'; }
