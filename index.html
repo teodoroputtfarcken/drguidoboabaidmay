@@ -335,7 +335,7 @@ tr:hover td{background:rgba(22,47,101,0.1)}
         <div class="ccard"><div class="ctitle">CPC por Campanha</div><canvas id="ch-m-cpc-camp"></canvas></div>
         <div class="ccard"><div class="ctitle">CPM por Campanha</div><canvas id="ch-m-cpm-camp"></canvas></div>
         <div class="ccard wide"><div class="ctitle">Investimento x Leads por Dia</div><canvas id="ch-m-invest-leads"></canvas></div>
-        <div class="ccard wide" id="funil-meta-card"><div class="ctitle">Funil Meta — Impressões → Alcance → Cliques → Conversões</div><div id="ch-funil-meta" style="padding:16px 0"></div></div>
+        <div class="ccard wide" id="funil-meta-card"><div class="ctitle">Funil de Conversão</div><div id="ch-funil-meta" style="padding:16px 0"></div></div>
       </div>
       <div class="tcard">
         <div class="thead-bar"><div class="sec-title" style="margin:0">Indicadores por Campanha</div></div>
@@ -1160,14 +1160,20 @@ function renderChartsMeta() {
   });
   const camps = Object.keys(byC);
 
-  // 1. Alcance & Impressões por Dia
+  // 1. Alcance & Impressões & Investimento por Dia
   const rd = getDailyData(filtMeta, 'reach');
   const id = getDailyData(filtMeta, 'impr');
-  const allL = [...new Set([...rd.labels,...id.labels])].sort();
-  mkChart('ch-mreach','line', allL, [
-    { label:'Alcance',    data:allL.map(l=>rd.labels.includes(l)?rd.values[rd.labels.indexOf(l)]:0), borderColor:'#2854AD', backgroundColor:'rgba(40,84,173,0.06)', tension:.4, fill:true, order:1 },
-    { label:'Impressões', data:allL.map(l=>id.labels.includes(l)?id.values[id.labels.indexOf(l)]:0), borderColor:'#FFD600', backgroundColor:'rgba(255,214,0,0.04)', tension:.4, fill:true, yAxisID:'y1', order:2 },
-  ], { scales: scalesDual });
+  const cd2 = getDailyData(filtMeta, 'cost');
+  const allL = [...new Set([...rd.labels,...id.labels,...cd2.labels])].sort();
+  mkChart('ch-mreach','bar', allL, [
+    { type:'line', label:'Alcance',            data:allL.map(l=>rd.labels.includes(l)?rd.values[rd.labels.indexOf(l)]:0),  borderColor:'#2854AD', backgroundColor:'rgba(40,84,173,0.06)', tension:.4, fill:true, yAxisID:'y', order:1, pointRadius:3 },
+    { type:'line', label:'Impressões',          data:allL.map(l=>id.labels.includes(l)?id.values[id.labels.indexOf(l)]:0),  borderColor:'#FFD600', backgroundColor:'rgba(255,214,0,0.04)', tension:.4, fill:true, yAxisID:'y', order:2, pointRadius:3 },
+    { type:'bar',  label:'Investimento (R$)',   data:allL.map(l=>cd2.labels.includes(l)?cd2.values[cd2.labels.indexOf(l)]:0), backgroundColor:'rgba(255,255,255,0.12)', borderRadius:4, yAxisID:'y1', order:3 },
+  ], { scales:{
+    x:{ticks:{color:'#ffffff',font:{family:'Montserrat',size:8}},grid:{color:'rgba(255,255,255,0.04)'}},
+    y:{ticks:{color:'#ffffff',font:{family:'Montserrat',size:8}},grid:{color:'rgba(255,255,255,0.04)'}},
+    y1:{position:'right',ticks:{color:'#ffffff',font:{family:'Montserrat',size:8}},grid:{display:false}}
+  }});
 
   // 2. Leads por Dia
   const ld = getDailyData(filtMeta, 'leads');
@@ -1239,26 +1245,24 @@ function renderChartsMeta() {
     { type:'line', label:'Leads',             data:invLeadLabels.map(l=>leadsD.labels.includes(l)?leadsD.values[leadsD.labels.indexOf(l)]:0), borderColor:'#FFD600', backgroundColor:'rgba(255,214,0,0.06)', tension:.4, pointBackgroundColor:'#FFD600', pointRadius:4, pointHoverRadius:6, yAxisID:'y1', order:1 },
   ], { scales: scalesDual });
 
-  // 12. Funil Meta
+  // 12. Funil Meta — 3 etapas
   const fImpr  = filtMeta.reduce((a,r)=>a+r.impr,0);
-  const fReach = filtMeta.reduce((a,r)=>a+r.reach,0);
   const fClick = filtMeta.reduce((a,r)=>a+r.clicks,0);
   const fConv  = filtMeta.reduce((a,r)=>a+r.leads+r.conv,0);
-  renderFunilMeta(fImpr, fReach, fClick, fConv);
+  renderFunilMeta(fImpr, fClick, fConv);
 }
 
-function renderFunilMeta(impr, reach, clicks, conv) {
+function renderFunilMeta(impr, clicks, conv) {
   const el = document.getElementById('ch-funil-meta');
   if (!el) return;
   const stages = [
     { label:'IMPRESSÕES', value:impr,   color:'#062466', pct:100 },
-    { label:'ALCANCE',    value:reach,  color:'#2854AD', pct:impr   ? (reach/impr*100)   : 0 },
-    { label:'CLIQUES',    value:clicks, color:'#5B8FE8', pct:reach  ? (clicks/reach*100)  : 0 },
-    { label:'CONVERSÕES', value:conv,   color:'#ffffff', pct:clicks ? (conv/clicks*100)   : 0 },
+    { label:'CLIQUES',    value:clicks, color:'#2854AD', pct:impr   ? (clicks/impr*100)  : 0 },
+    { label:'CONVERSÕES', value:conv,   color:'#ffffff', pct:clicks ? (conv/clicks*100)  : 0 },
   ];
+  const widths = [100, 65, 30];
   el.innerHTML = stages.map((s,i) => {
     const isLight = s.color === '#ffffff';
-    const widths = [100, 78, 56, 34];
     return `
       <div style="margin-bottom:${i<stages.length-1?'6':'0'}px;">
         <div style="width:${widths[i]}%;margin:0 auto;background:${s.color};border-radius:6px;padding:14px 12px;text-align:center;">
