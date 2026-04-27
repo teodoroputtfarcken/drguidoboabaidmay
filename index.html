@@ -287,7 +287,7 @@ tr:hover td{background:rgba(22,47,101,0.1)}
         <div class="ccard"><div class="ctitle">Leads & Conversões por Plataforma</div><canvas id="ch-leads"></canvas></div>
         <div class="ccard"><div class="ctitle">CPL por Plataforma</div><canvas id="ch-cpl-plat"></canvas></div>
         <div class="ccard wide"><div class="ctitle">Gráfico de Investimento por Dia</div><canvas id="ch-invest-leads"></canvas></div>
-        <div class="ccard wide" id="funil-card"><div class="ctitle">Funil Geral — Impressões → Cliques → Leads → Conversões</div><div id="ch-funil-custom" style="padding:16px 0"></div></div>
+        <div class="ccard wide" id="funil-card"><div class="ctitle">Funil de Conversão</div><div id="ch-funil-custom" style="padding:16px 0"></div></div>
       </div>
     </div>
 
@@ -587,19 +587,26 @@ async function init() {
 function setupDates() {
   const allDates = [...rawGoogle, ...rawMeta].map(r => r.date).filter(Boolean);
   if (!allDates.length) return;
-  const minD = new Date(Math.min(...allDates));
   const maxD = new Date(Math.max(...allDates));
 
-  document.getElementById('f-start').value = isoDate(minD);
+  // Padrão: últimos 7 dias até a data mais recente disponível
+  const startD = new Date(maxD);
+  startD.setDate(startD.getDate() - 6);
+
+  // Garante mínimo 2026-01-01
+  const minAllowed = new Date('2026-01-01T00:00:00');
+  const finalStart = startD < minAllowed ? minAllowed : startD;
+
+  document.getElementById('f-start').value = isoDate(finalStart);
   document.getElementById('f-end').value   = isoDate(maxD);
 
-  // Período comparativo = mês anterior ao início
-  const compEnd = new Date(minD); compEnd.setDate(compEnd.getDate() - 1);
-  const compStart = new Date(compEnd); compStart.setDate(1);
+  // Período comparativo = 7 dias anteriores ao período atual
+  const compEnd   = new Date(finalStart); compEnd.setDate(compEnd.getDate() - 1);
+  const compStart = new Date(compEnd);    compStart.setDate(compStart.getDate() - 6);
   document.getElementById('c-start').value = isoDate(compStart);
   document.getElementById('c-end').value   = isoDate(compEnd);
 
-  document.getElementById('h-period').textContent  = `${fmtDate(minD)} – ${fmtDate(maxD)}`;
+  document.getElementById('h-period').textContent  = `${fmtDate(finalStart)} – ${fmtDate(maxD)}`;
   document.getElementById('h-compare').textContent = `${fmtDate(compStart)} – ${fmtDate(compEnd)}`;
 }
 
@@ -826,9 +833,12 @@ function mkChart(id, type, labels, datasets, extra={}) {
   const tooltipFmt = {
     callbacks: {
       label: function(ctx) {
-        const raw = ctx.parsed.y ?? ctx.parsed.x ?? 0;
+        // Suporte tanto barras verticais (parsed.y) quanto horizontais (parsed.x)
+        const raw = (ctx.parsed.x !== undefined && ctx.parsed.x !== null && ctx.chart.config.options?.indexAxis === 'y')
+          ? ctx.parsed.x
+          : (ctx.parsed.y ?? ctx.parsed.x ?? 0);
         const lbl = (ctx.dataset.label || '');
-        const isMonetary = /R\$|CPA|CPL|CPC|Gasto|Invest|Custo|Conversão \(R|custo/i.test(lbl);
+        const isMonetary = /R\$|CPA|CPL|CPC|Gasto|Invest|Custo|custo/i.test(lbl);
         const isPct      = /CTR|Taxa|%/i.test(lbl);
         if (isMonetary) return ` ${lbl}: R$ ${Number(raw).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
         if (isPct)      return ` ${lbl}: ${Number(raw).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}%`;
@@ -874,7 +884,8 @@ function getDailyData(rows, key) {
     byDate[d] += r[key]||0;
   });
   const sorted = Object.keys(byDate).sort();
-  return { labels: sorted.map(d=>d.slice(5).replace('-','/')), values: sorted.map(d=>byDate[d]) };
+  // Formato dd/mm: inverte os dois segmentos após o ano
+  return { labels: sorted.map(d=>{ const p=d.slice(5).split('-'); return p[1]+'/'+p[0]; }), values: sorted.map(d=>byDate[d]) };
 }
 
 function renderChartsGeral(G, M) {
@@ -918,47 +929,37 @@ function renderChartsGeral(G, M) {
     borderRadius:6
   }],{ indexAxis:'y' });
 
-  // ── 6. Investimento x Leads combinado (barras + linha)
-  const gdLeads = getDailyData(filtMeta, 'leads');
-  const gdCost  = getDailyData(filtMeta, 'cost');
-  const combLabels = [...new Set([...gdCost.labels,...gdLeads.labels])].sort();
-  mkChart('ch-invest-leads','bar', combLabels, [
-    {
-      type:'bar',
-      label:'Investimento Meta (R$)',
-      data: combLabels.map(l=>gdCost.labels.includes(l)?gdCost.values[gdCost.labels.indexOf(l)]:0),
-      backgroundColor:'#2854AD', borderRadius:4, yAxisID:'y'
-    },
-    {
-      type:'line',
-      label:'Leads',
-      data: combLabels.map(l=>gdLeads.labels.includes(l)?gdLeads.values[gdLeads.labels.indexOf(l)]:0),
-      borderColor:'#FFD600', backgroundColor:'rgba(255,214,0,0.06)', tension:.4, yAxisID:'y1'
-    }
-  ],{
-    scales:{
-      x:{ticks:{color:'#ffffff',font:{family:'Montserrat',size:8}},grid:{color:'rgba(255,255,255,0.04)'}},
-      y:{ticks:{color:'#ffffff',font:{family:'Montserrat',size:8}},grid:{color:'rgba(255,255,255,0.04)'},title:{display:true,text:'R$',color:'#6b82a0',font:{size:9}}},
-      y1:{position:'right',ticks:{color:'#ffffff',font:{family:'Montserrat',size:8}},grid:{display:false},title:{display:true,text:'Leads',color:'#6b82a0',font:{size:9}}}
-    }
+  // ── 6. Gráfico de Investimento por Dia (Google + Meta empilhado)
+  const gdG2 = getDailyData(filtGoogle, 'cost');
+  const gdM2 = getDailyData(filtMeta,   'cost');
+  // Combina todos os labels e soma Google+Meta por dia
+  const allInvLabels = [...new Set([...gdG2.labels,...gdM2.labels])].sort();
+  const totalByDay = allInvLabels.map(l => {
+    const gv = gdG2.labels.includes(l) ? gdG2.values[gdG2.labels.indexOf(l)] : 0;
+    const mv = gdM2.labels.includes(l) ? gdM2.values[gdM2.labels.indexOf(l)] : 0;
+    return gv + mv;
   });
+  mkChart('ch-invest-leads','bar', allInvLabels, [
+    { label:'Investimento Total (R$)', data: totalByDay, backgroundColor:'#2854AD', borderRadius:4 }
+  ],{ scales:{
+    x:{ticks:{color:'#ffffff',font:{family:'Montserrat',size:8}},grid:{color:'rgba(255,255,255,0.04)'}},
+    y:{ticks:{color:'#ffffff',font:{family:'Montserrat',size:8}},grid:{color:'rgba(255,255,255,0.04)'}}
+  }});
 
   // ── 8. Funil visual SVG
   const fImpr  = G.impr  + M.impr;
   const fClick = G.clicks + M.clicks;
-  const fLeads = M.leads;
   const fConv  = G.conv  + M.conv;
-  renderFunil(fImpr, fClick, fLeads, fConv);
+  renderFunil(fImpr, fClick, fConv);
 }
 
-function renderFunil(impr, clicks, leads, conv) {
+function renderFunil(impr, clicks, conv) {
   const el = document.getElementById('ch-funil-custom');
   if (!el) return;
   const stages = [
     { label:'IMPRESSÕES', value: impr,   color:'#062466', pct: 100 },
-    { label:'CLIQUES',    value: clicks, color:'#2854AD', pct: impr  ? (clicks/impr*100)  : 0 },
-    { label:'LEADS',      value: leads,  color:'#5B8FE8', pct: clicks ? (leads/clicks*100) : 0 },
-    { label:'CONVERSÕES', value: conv,   color:'#ffffff', pct: leads  ? (conv/leads*100)   : 0 },
+    { label:'CLIQUES',    value: clicks, color:'#2854AD', pct: impr   ? (clicks/impr*100)  : 0 },
+    { label:'CONVERSÕES', value: conv,   color:'#ffffff', pct: clicks ? (conv/clicks*100)  : 0 },
   ];
   const maxW = 100;
   const minW = 30;
