@@ -436,7 +436,7 @@ function mapMeta(rows) {
       leads:       leadCol    ? parseNum(r[leadCol])     : 0,
       cpl:         cplCol     ? parseNum(r[cplCol])      : 0,
       conv:        convCol    ? parseNum(r[convCol])     : 0,
-      cpa:         cpaCol     ? parseNum(r[cpaCol])      : 0,
+      cpa:         0, // calculado como cost/conv
       followers:   follCol    ? parseNum(r[follCol])     : 0,
       profileVisit:profileCol ? parseNum(r[profileCol])  : 0,
       campaign: campCol ? r[campCol] : '',
