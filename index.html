@@ -369,8 +369,8 @@ function mapGoogle(rows) {
       date:     dateCol   ? parseDate(r[dateCol])   : null,
       campaign: campCol   ? r[campCol]               : '–',
       cost:     costCol   ? parseNum(r[costCol])     : 0,
-      impr:     impCol    ? parseNum(r[impCol])      : 0,
-      clicks:   clickCol  ? parseNum(r[clickCol])    : 0,
+      impr:     impCol    ? parseNum(r[impCol], { assumeInteger: true })      : 0,
+      clicks:   clickCol  ? parseNum(r[clickCol], { assumeInteger: true })    : 0,
       ctr:      ctrCol    ? parseNum(r[ctrCol])      : 0,
       cpc:      cpcCol    ? parseNum(r[cpcCol])      : 0,
       conv:     convCol   ? parseNum(r[convCol])     : 0,
@@ -407,20 +407,20 @@ function mapMeta(rows) {
 
     return {
       date:        dateCol    ? parseDate(r[dateCol])    : null,
-      impr:        impCol     ? parseNum(r[impCol])      : 0,
-      reach:       reachCol   ? parseNum(r[reachCol])    : 0,
-      clicks:      clickCol   ? parseNum(r[clickCol])    : 0,
-      linkClicks:  linkCol    ? parseNum(r[linkCol])     : 0,
+      impr:        impCol     ? parseNum(r[impCol], { assumeInteger: true })      : 0,
+      reach:       reachCol   ? parseNum(r[reachCol], { assumeInteger: true })    : 0,
+      clicks:      clickCol   ? parseNum(r[clickCol], { assumeInteger: true })    : 0,
+      linkClicks:  linkCol    ? parseNum(r[linkCol], { assumeInteger: true })     : 0,
       ctr:         0, // calculated from clicks/impr
       cost:        costCol    ? parseNum(r[costCol])     : 0,
-      leads:       leadCol    ? parseNum(r[leadCol])     : 0,
+      leads:       leadCol    ? parseNum(r[leadCol], { assumeInteger: true })     : 0,
       cpl:         cplCol     ? parseNum(r[cplCol])      : 0,
-      conv:        convCol    ? parseNum(r[convCol])     : 0,
+      conv:        convCol    ? parseNum(r[convCol], { assumeInteger: true })     : 0,
       cpa:         cpaCol     ? parseNum(r[cpaCol])      : 0,
-      followers:   follCol    ? parseNum(r[follCol])     : 0,
-      profileVisit:profileCol ? parseNum(r[profileCol])  : 0,
+      followers:   follCol    ? parseNum(r[follCol], { assumeInteger: true })     : 0,
+      profileVisit:profileCol ? parseNum(r[profileCol], { assumeInteger: true })  : 0,
       campaign: campCol ? r[campCol] : '',
-      thruplay:    thruCol    ? parseNum(r[thruCol])     : 0,
+      thruplay:    thruCol    ? parseNum(r[thruCol], { assumeInteger: true })     : 0,
       costThru:    cptCol     ? parseNum(r[cptCol])      : 0,
       _raw: r
     };
@@ -430,7 +430,8 @@ function mapMeta(rows) {
 }
 
 // ── PARSERS ──
-function parseNum(v) {
+function parseNum(v, opts = {}) {
+  const { assumeInteger = false } = opts;
   if (!v || v === '' || v === '-' || v === '–') return 0;
   let s = String(v).trim();
 
@@ -458,9 +459,19 @@ function parseNum(v) {
       s = s.replace(/,/g, '');
     }
   } else if (commas === 1) {
-    // Formato Meta BR: "118,72" ou "2,31458" → sempre vírgula decimal
-    // Se não tiver ponto, vírgula é SEMPRE decimal nesse export
-    s = s.replace(',', '.');
+    // Ambíguo: pode ser decimal BR ("118,72") ou milhar US ("17,757")
+    const [, right] = s.split(',');
+    const rightDigits = (right || '').replace(/\D/g, '').length;
+    if (assumeInteger) {
+      // Campos de volume (impressões/alcance/cliques) são inteiros
+      s = s.replace(',', '');
+    } else if (rightDigits === 3) {
+      // Fallback: em formatos sem contexto, 3 dígitos tende a milhar
+      s = s.replace(',', '');
+    } else {
+      // Ex.: 118,72 / 2,31458 => vírgula decimal
+      s = s.replace(',', '.');
+    }
   }
 
   s = s.replace(/[^0-9.\-]/g, '');
