@@ -923,25 +923,39 @@ function renderChartsGeral(G, M) {
   const mConvVal  = M.conv  || 0;
   console.log('Pizza data → G.conv:', gConvVal, 'M.leads:', mLeadsVal, 'M.conv:', mConvVal);
 
+  // Remove mensagem anterior se houver
+  const pizzaParent = document.getElementById('ch-conv-pizza')?.parentElement;
+  if (pizzaParent) {
+    const oldMsg = pizzaParent.querySelector('.no-data-msg');
+    if (oldMsg) oldMsg.remove();
+  }
+  // Destrói instância anterior explicitamente
+  destroyChart('ch-conv-pizza');
+
   const pizzaLabels = ['Google – Conv.', 'Meta – Leads', 'Meta – Conv.'];
   const pizzaData   = [gConvVal, mLeadsVal, mConvVal];
   const pizzaColors = ['#2854AD', '#FFD600', '#ffffff'];
 
-  // Filtra só os que têm valor > 0
   const pLabels = pizzaLabels.filter((_,i) => pizzaData[i] > 0);
   const pData   = pizzaData.filter(v => v > 0);
   const pColors = pizzaColors.filter((_,i) => pizzaData[i] > 0);
 
   if (pData.length > 0) {
+    // Recria o canvas para garantir estado limpo
+    const oldCanvas = document.getElementById('ch-conv-pizza');
+    if (oldCanvas) {
+      const newCanvas = document.createElement('canvas');
+      newCanvas.id = 'ch-conv-pizza';
+      oldCanvas.parentNode.replaceChild(newCanvas, oldCanvas);
+    }
     mkChart('ch-conv-pizza','doughnut', pLabels, [{
       data: pData,
       backgroundColor: pColors,
       borderColor: '#0e1620', borderWidth: 3
     }]);
   } else {
-    const parent = document.getElementById('ch-conv-pizza')?.parentElement;
-    if (parent && !parent.querySelector('.no-data-msg')) {
-      parent.insertAdjacentHTML('beforeend','<p class="no-data-msg" style="text-align:center;color:#4a617a;font-size:11px;font-weight:700;padding:20px 0">Sem conversões no período</p>');
+    if (pizzaParent) {
+      pizzaParent.insertAdjacentHTML('beforeend','<p class="no-data-msg" style="text-align:center;color:#4a617a;font-size:11px;font-weight:700;padding:20px 0">Sem conversões no período</p>');
     }
   }
 
