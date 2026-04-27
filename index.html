@@ -139,13 +139,48 @@ tr:hover td{background:rgba(22,47,101,0.1)}
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-thumb{background:var(--gray-700);border-radius:3px}
 
-@media(max-width:768px){
-  .hero-inner{flex-direction:column;align-items:flex-start}
-  .hero-meta{text-align:left}
+/* ── RESPONSIVO ── */
+@media(max-width:1100px){
+  .main{padding:28px 32px 60px}
+  .kgrid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
+}
+@media(max-width:900px){
   .cgrid{grid-template-columns:1fr}
-  .main{padding:16px 14px 40px}
-  .hero{padding:26px 16px 20px}
-  .tabs{padding:0 14px}
+  .ccard.wide{grid-column:1}
+  .main{padding:22px 20px 50px}
+  .kgrid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+  .topbar{padding:0 16px;height:auto;flex-wrap:wrap;gap:8px;padding-top:10px;padding-bottom:10px}
+  .tb-info strong{font-size:9px}
+  .hero{padding:24px 20px 18px}
+  .hero-title{font-size:clamp(26px,6vw,44px)}
+  .frow{flex-direction:column;gap:10px}
+  .fg{min-width:100%}
+  .factions{flex-direction:row;width:100%}
+  .factions .btn{flex:1}
+}
+@media(max-width:600px){
+  .main{padding:16px 12px 40px}
+  .hero-inner{flex-direction:column;align-items:flex-start;gap:14px}
+  .hero-meta{text-align:left;width:100%}
+  .hero-title{font-size:clamp(22px,8vw,36px)}
+  .tabs{padding:0 10px;gap:0}
+  .tab{padding:12px 10px;font-size:9px;letter-spacing:1px}
+  .kgrid{grid-template-columns:repeat(2,1fr);gap:8px}
+  .kcard{padding:12px 12px 10px}
+  .kval{font-size:18px}
+  .topbar{height:auto;flex-wrap:wrap}
+  .tb-btns{gap:6px}
+  .btn{font-size:8px;padding:6px 10px}
+  .fbox{padding:12px 14px}
+  .cfields{flex-direction:column}
+  .cfields .fg{min-width:100%}
+  table{font-size:10px}
+  th{padding:7px 8px;font-size:7px}
+  td{padding:8px 8px;font-size:10px}
+}
+@media(max-width:400px){
+  .kgrid{grid-template-columns:1fr}
+  .hero-title{font-size:22px}
 }
 </style>
 </head>
@@ -808,8 +843,19 @@ function mkChart(id, type, labels, datasets, extra={}) {
     data: { labels, datasets },
     options: {
       responsive: true,
+      maintainAspectRatio: true,
       plugins: {
-        legend: { labels: { color:'#a8b8cc', font:{family:'Montserrat',size:10,weight:'600'}, boxWidth:12 } },
+        legend: {
+          position: (type==='doughnut'||type==='pie') ? 'bottom' : 'top',
+          labels: {
+            color: '#ffffff',
+            font: {family:'Montserrat', size:10, weight:'700'},
+            boxWidth: 14,
+            padding: 16,
+            usePointStyle: (type==='doughnut'||type==='pie'),
+            pointStyleWidth: 12,
+          }
+        },
         tooltip: tooltipFmt
       },
       scales: (type==='doughnut'||type==='pie') ? {} : {
@@ -845,22 +891,22 @@ function renderChartsGeral(G, M) {
   // ── 2. Investimento total por plataforma (rosca)
   mkChart('ch-donut','doughnut',['Google Ads','Meta Ads'],[{
     data:[G.cost, M.cost],
-    backgroundColor:['#062466','#2854AD'],
-    borderColor:['#0e1620','#0e1620'], borderWidth:4
-  }]);
+    backgroundColor:['#2854AD','#ffffff'],
+    borderColor:['#0e1620','#0e1620'], borderWidth:3
+  }],{plugins:{legend:{labels:{color:'#a8b8cc',font:{family:'Montserrat',size:10,weight:'600'},boxWidth:12}},datalabels:false}});
 
   // ── 3. Participação no total de conversões (pizza)
   const totalConv = G.conv + M.conv + M.leads;
   mkChart('ch-conv-pizza','doughnut',['Google Conv.','Meta Conv.','Meta Leads'],[{
     data:[G.conv, M.conv, M.leads],
-    backgroundColor:['#062466','#2854AD','#5B8FE8'],
-    borderColor:['#0e1620','#0e1620','#0e1620'], borderWidth:4
+    backgroundColor:['#2854AD','#ffffff','#FFD600'],
+    borderColor:['#0e1620','#0e1620','#0e1620'], borderWidth:3
   }]);
 
   // ── 4. Leads & conversões por plataforma (barras verticais)
   mkChart('ch-leads','bar',['Google Ads','Meta Ads'],[
-    { label:'Conversões', data:[G.conv, M.conv], backgroundColor:['#062466','#062466'], borderRadius:6 },
-    { label:'Leads',      data:[0, M.leads],      backgroundColor:['transparent','#2854AD'], borderRadius:6 },
+    { label:'Conversões', data:[G.conv, M.conv], backgroundColor:['#2854AD','#2854AD'], borderRadius:6 },
+    { label:'Leads (Meta)', data:[0, M.leads], backgroundColor:['transparent','#FFD600'], borderRadius:6 },
   ]);
 
   // ── 5. CPL por plataforma (barras horizontais)
@@ -869,7 +915,7 @@ function renderChartsGeral(G, M) {
   mkChart('ch-cpl-plat','bar',['Google Ads (CPA)','Meta Ads (CPL)'],[{
     label:'Custo por Lead / Conversão (R$)',
     data:[gCPL, mCPL],
-    backgroundColor:['#062466','#2854AD'],
+    backgroundColor:['#2854AD','#ffffff'],
     borderRadius:6
   }],{ indexAxis:'y' });
 
@@ -882,13 +928,13 @@ function renderChartsGeral(G, M) {
       type:'bar',
       label:'Investimento Meta (R$)',
       data: combLabels.map(l=>gdCost.labels.includes(l)?gdCost.values[gdCost.labels.indexOf(l)]:0),
-      backgroundColor:'rgba(6,36,102,0.8)', borderRadius:4, yAxisID:'y'
+      backgroundColor:'#2854AD', borderRadius:4, yAxisID:'y'
     },
     {
       type:'line',
       label:'Leads',
       data: combLabels.map(l=>gdLeads.labels.includes(l)?gdLeads.values[gdLeads.labels.indexOf(l)]:0),
-      borderColor:'#ffffff', backgroundColor:'rgba(255,255,255,0.06)', tension:.4, yAxisID:'y1'
+      borderColor:'#FFD600', backgroundColor:'rgba(255,214,0,0.06)', tension:.4, yAxisID:'y1'
     }
   ],{
     scales:{
@@ -905,7 +951,7 @@ function renderChartsGeral(G, M) {
   mkChart('ch-roas-plat','bar',['Google Ads','Meta Ads'],[{
     label:'ROAS',
     data:[gROAS, mROAS],
-    backgroundColor:['#062466','#2854AD'], borderRadius:6
+    backgroundColor:['#2854AD','#FFD600'], borderRadius:6
   }]);
 
   // ── 8. Funil geral (barras horizontais decrescentes)
@@ -918,7 +964,7 @@ function renderChartsGeral(G, M) {
     [{
       label:'Funil',
       data:[fImpr, fClick, fLeads, fConv],
-      backgroundColor:['#062466','#1a3d8a','#2854AD','#5B8FE8'],
+      backgroundColor:['#062466','#2854AD','#5B8FE8','#ffffff'],
       borderRadius:6
     }],
     { indexAxis:'y',
@@ -963,50 +1009,50 @@ function renderChartsGoogle() {
   const id = getDailyData(filtGoogle, 'impr');
   const allL = [...new Set([...cd.labels,...id.labels])].sort();
   mkChart('ch-gclicks','bar', allL, [
-    { type:'bar',  label:'Impressões', data:allL.map(l=>id.labels.includes(l)?id.values[id.labels.indexOf(l)]:0), backgroundColor:'rgba(6,36,102,0.8)', borderRadius:4, yAxisID:'y' },
-    { type:'line', label:'Cliques',    data:allL.map(l=>cd.labels.includes(l)?cd.values[cd.labels.indexOf(l)]:0), borderColor:'#ffffff', tension:.4, yAxisID:'y1' },
+    { type:'bar',  label:'Impressões', data:allL.map(l=>id.labels.includes(l)?id.values[id.labels.indexOf(l)]:0), backgroundColor:'#2854AD', borderRadius:4, yAxisID:'y' },
+    { type:'line', label:'Cliques',    data:allL.map(l=>cd.labels.includes(l)?cd.values[cd.labels.indexOf(l)]:0), borderColor:'#FFD600', tension:.4, pointBackgroundColor:'#FFD600', yAxisID:'y1' },
   ], { scales: scalesDual });
 
   // ── 2. CTR por campanha (barras horizontais — média ponderada real)
   mkChart('ch-gctr','bar', camps, [{
     label:'CTR %',
     data: camps.map(c => safe(byCamp[c].clicks, byCamp[c].impr)*100),
-    backgroundColor:'#062466', borderRadius:6
+    backgroundColor:'#5B8FE8', borderRadius:6
   }], { indexAxis:'y', scales: scalesH });
 
   // ── 3. CPA por campanha (barras horizontais)
   mkChart('ch-gcpa','bar', camps, [{
     label:'CPA (R$)',
     data: camps.map(c => safe(byCamp[c].cost, byCamp[c].conv)),
-    backgroundColor:'#2854AD', borderRadius:6
+    backgroundColor:'#ffffff', borderRadius:6
   }], { indexAxis:'y', scales: scalesH });
 
   // ── 4. Investimento por campanha (barras horizontais)
   mkChart('ch-ginvest','bar', camps, [{
     label:'Investimento (R$)',
     data: camps.map(c => byCamp[c].cost),
-    backgroundColor:'#062466', borderRadius:6
+    backgroundColor:'#2854AD', borderRadius:6
   }], { indexAxis:'y', scales: scalesH });
 
   // ── 5. Conversões por campanha (barras horizontais)
   mkChart('ch-gconv-camp','bar', camps, [{
     label:'Conversões',
     data: camps.map(c => byCamp[c].conv),
-    backgroundColor:'#2854AD', borderRadius:6
+    backgroundColor:'#FFD600', borderRadius:6
   }], { indexAxis:'y', scales: scalesH });
 
   // ── 6. CPC médio por campanha (barras horizontais)
   mkChart('ch-gcpc','bar', camps, [{
     label:'CPC Médio (R$)',
     data: camps.map(c => safe(byCamp[c].cost, byCamp[c].clicks)),
-    backgroundColor:'#062466', borderRadius:6
+    backgroundColor:'#5B8FE8', borderRadius:6
   }], { indexAxis:'y', scales: scalesH });
 
   // ── 7. Taxa de conversão por campanha (barras horizontais)
   mkChart('ch-gtxconv','bar', camps, [{
     label:'Taxa de Conversão %',
     data: camps.map(c => safe(byCamp[c].conv, byCamp[c].clicks)*100),
-    backgroundColor:'#2854AD', borderRadius:6
+    backgroundColor:'#ffffff', borderRadius:6
   }], { indexAxis:'y', scales: scalesH });
 
   // ── 8. Evolução diária de conversões (linha)
@@ -1014,7 +1060,7 @@ function renderChartsGoogle() {
   mkChart('ch-gconv-dia','line', convD.labels, [{
     label:'Conversões',
     data: convD.values,
-    borderColor:'#ffffff', backgroundColor:'rgba(255,255,255,0.05)', tension:.4, fill:true
+    borderColor:'#FFD600', backgroundColor:'rgba(255,214,0,0.05)', tension:.4, fill:true
   }], { scales: scalesH });
 }
 
@@ -1033,7 +1079,7 @@ function renderChartsMeta() {
 
   const ld = getDailyData(filtMeta, 'leads');
   mkChart('ch-mleads','bar', ld.labels, [{
-    label:'Leads', data:ld.values, backgroundColor:'#062466', borderRadius:6
+    label:'Leads', data:ld.values, backgroundColor:'#FFD600', borderRadius:6
   }]);
 
   // CPL por dia
