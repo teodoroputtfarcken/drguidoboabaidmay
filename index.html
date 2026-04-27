@@ -233,8 +233,8 @@ tr:hover td{background:rgba(22,47,101,0.1)}
   <div class="fbox">
     <div class="flabel">▶ Filtros</div>
     <div class="frow">
-      <div class="fg"><label>Data Inicial</label><input type="date" id="f-start" onchange="applyFilters()"></div>
-      <div class="fg"><label>Data Final</label><input type="date" id="f-end" onchange="applyFilters()"></div>
+      <div class="fg"><label>Data Inicial</label><input type="date" id="f-start" min="2026-01-01" onchange="applyFilters()"></div>
+      <div class="fg"><label>Data Final</label><input type="date" id="f-end" min="2026-01-01" onchange="applyFilters()"></div>
       <div class="fg">
         <label>Campanha (Google)</label>
         <select id="f-campaign" onchange="applyFilters()"><option value="">Todas</option></select>
@@ -251,10 +251,10 @@ tr:hover td{background:rgba(22,47,101,0.1)}
     <div class="fdivider"></div>
     <div class="compare-wrap">
       <label class="ctoggle">
-        <input type="checkbox" id="cmp-on" checked onchange="toggleCompare()">
+        <input type="checkbox" id="cmp-on" onchange="toggleCompare()">
         Comparar com período anterior
       </label>
-      <div class="cfields" id="cmp-fields">
+      <div class="cfields" id="cmp-fields" style="display:none">
         <div class="fg" style="min-width:130px"><label>Comparativo Início</label><input type="date" id="c-start" onchange="applyFilters()"></div>
         <div class="fg" style="min-width:130px"><label>Comparativo Fim</label><input type="date" id="c-end" onchange="applyFilters()"></div>
       </div>
@@ -281,14 +281,13 @@ tr:hover td{background:rgba(22,47,101,0.1)}
       </div>
       <div class="kgrid" id="kg-geral"></div>
       <div class="cgrid">
-        <div class="ccard wide"><div class="ctitle">Evolução Diária do Investimento</div><canvas id="ch-gasto"></canvas></div>
+        <div class="ccard wide"><div class="ctitle">Investimento Diário — Google Ads vs Meta Ads</div><canvas id="ch-gasto"></canvas></div>
         <div class="ccard"><div class="ctitle">Investimento Total por Plataforma</div><canvas id="ch-donut"></canvas></div>
         <div class="ccard"><div class="ctitle">Participação no Total de Conversões</div><canvas id="ch-conv-pizza"></canvas></div>
         <div class="ccard"><div class="ctitle">Leads & Conversões por Plataforma</div><canvas id="ch-leads"></canvas></div>
         <div class="ccard"><div class="ctitle">CPL por Plataforma</div><canvas id="ch-cpl-plat"></canvas></div>
-        <div class="ccard wide"><div class="ctitle">Investimento x Leads (barras + linha)</div><canvas id="ch-invest-leads"></canvas></div>
-        <div class="ccard"><div class="ctitle">ROAS por Plataforma</div><canvas id="ch-roas-plat"></canvas></div>
-        <div class="ccard wide"><div class="ctitle">Funil Geral — Impressões → Cliques → Leads → Conversões</div><canvas id="ch-funil"></canvas></div>
+        <div class="ccard wide"><div class="ctitle">Gráfico de Investimento por Dia</div><canvas id="ch-invest-leads"></canvas></div>
+        <div class="ccard wide" id="funil-card"><div class="ctitle">Funil Geral — Impressões → Cliques → Leads → Conversões</div><div id="ch-funil-custom" style="padding:16px 0"></div></div>
       </div>
     </div>
 
@@ -649,7 +648,7 @@ function clearFilters() {
 }
 
 function toggleCompare() {
-  document.getElementById('cmp-fields').style.display = document.getElementById('cmp-on').checked ? '' : 'none';
+  document.getElementById('cmp-fields').style.display = document.getElementById('cmp-on').checked ? 'flex' : 'none';
   applyFilters();
 }
 
@@ -944,37 +943,47 @@ function renderChartsGeral(G, M) {
     }
   });
 
-  // ── 7. ROAS por plataforma (barras)
-  const gROAS = safe(G.convVal, G.cost);
-  // Meta não tem convVal direto, usa leads como proxy de valor se convVal=0
-  const mROAS = M.cost > 0 ? safe(M.conv * 100, M.cost) : 0; // estimativa se não houver valor real
-  mkChart('ch-roas-plat','bar',['Google Ads','Meta Ads'],[{
-    label:'ROAS',
-    data:[gROAS, mROAS],
-    backgroundColor:['#2854AD','#FFD600'], borderRadius:6
-  }]);
-
-  // ── 8. Funil geral (barras horizontais decrescentes)
+  // ── 8. Funil visual SVG
   const fImpr  = G.impr  + M.impr;
   const fClick = G.clicks + M.clicks;
   const fLeads = M.leads;
   const fConv  = G.conv  + M.conv;
-  mkChart('ch-funil','bar',
-    ['Impressões','Cliques','Leads','Conversões'],
-    [{
-      label:'Funil',
-      data:[fImpr, fClick, fLeads, fConv],
-      backgroundColor:['#062466','#2854AD','#5B8FE8','#ffffff'],
-      borderRadius:6
-    }],
-    { indexAxis:'y',
-      plugins:{ legend:{ display:false } },
-      scales:{
-        x:{ticks:{color:'#ffffff',font:{family:'Montserrat',size:8}},grid:{color:'rgba(255,255,255,0.04)'}},
-        y:{ticks:{color:'#ffffff',font:{family:'Montserrat',size:9,weight:'700'}},grid:{color:'rgba(255,255,255,0.04)'}}
-      }
-    }
-  );
+  renderFunil(fImpr, fClick, fLeads, fConv);
+}
+
+function renderFunil(impr, clicks, leads, conv) {
+  const el = document.getElementById('ch-funil-custom');
+  if (!el) return;
+  const stages = [
+    { label:'IMPRESSÕES', value: impr,   color:'#062466', pct: 100 },
+    { label:'CLIQUES',    value: clicks, color:'#2854AD', pct: impr  ? (clicks/impr*100)  : 0 },
+    { label:'LEADS',      value: leads,  color:'#5B8FE8', pct: clicks ? (leads/clicks*100) : 0 },
+    { label:'CONVERSÕES', value: conv,   color:'#ffffff', pct: leads  ? (conv/leads*100)   : 0 },
+  ];
+  const maxW = 100;
+  const minW = 30;
+  el.innerHTML = stages.map((s,i) => {
+    const w = maxW - (i * (maxW - minW) / (stages.length - 1));
+    const isLight = s.color === '#ffffff';
+    return `
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:${i<stages.length-1?'6':'0'}px;">
+        <div style="flex:1;position:relative;">
+          <div style="
+            width:${w}%;margin:0 auto;
+            background:${s.color};
+            border-radius:6px;
+            padding:14px 12px;
+            text-align:center;
+            clip-path:polygon(${i===0?'2%':'${(100-w)/2+2}%'} 0%, ${i===0?'98%':'${100-(100-w)/2-2}%'} 0%, 97% 100%, 3% 100%);
+            clip-path:polygon(2% 0%,98% 0%,96% 100%,4% 100%);
+          ">
+            <div style="font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:${isLight?'#162F65':'rgba(255,255,255,0.7)'};">${s.label}</div>
+            <div style="font-size:22px;font-weight:900;color:${isLight?'#162F65':'#ffffff'};margin-top:4px;">${fmtN(s.value)}</div>
+            ${i>0?`<div style="font-size:10px;font-weight:700;color:${isLight?'rgba(22,47,101,0.7)':'rgba(255,255,255,0.55)'};">conv. ${s.pct.toFixed(1)}% da etapa anterior</div>`:''}
+          </div>
+        </div>
+      </div>`;
+  }).join('');
 }
 
 function renderChartsGoogle() {
