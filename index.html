@@ -406,7 +406,7 @@ function mapGoogle(rows) {
     const clickCol   = findCol(r, ['Clicks','Cliques']);
     const ctrCol     = findCol(r, ['Ctr','CTR']);
     const cpcCol     = findCol(r, ['Average Cpc','Average CPC','CPC','Avg. CPC','cpc']);
-    const convCol    = findCol(r, ['Conversions','Conversões']);
+    const convCol    = findCol(r, ['Conversions','Conversões']); // exact match primeiro
     const convValCol = findCol(r, ['Conv. value','Valor conv']);
     const cpaCol     = findCol(r, ['Cost Per Conversion','Cost / conv','CPA']);
 
@@ -430,6 +430,18 @@ function mapGoogle(rows) {
     impr: mapped[0].impr, clicks: mapped[0].clicks,
     cost: mapped[0].cost, conv: mapped[0].conv, cpc: mapped[0].cpc
   }));
+
+  // Log total conversions across all rows
+  const totalConvDebug = mapped.reduce((a,r) => a + r.conv, 0);
+  console.log('Google total conv across ALL rows:', totalConvDebug);
+
+  // Log which column was detected for conversions
+  if (mapped.length > 0) {
+    const sampleKeys = Object.keys(mapped[0]._raw);
+    const convKey = sampleKeys.find(k => k.trim().toLowerCase() === 'conversions');
+    console.log('Conv column found:', convKey, '→ raw value sample:', mapped[0]._raw[convKey]);
+  }
+
   return mapped;
 }
 
@@ -833,11 +845,12 @@ function mkChart(id, type, labels, datasets, extra={}) {
   const tooltipFmt = {
     callbacks: {
       label: function(ctx) {
-        // Suporte tanto barras verticais (parsed.y) quanto horizontais (parsed.x)
-        const raw = (ctx.parsed.x !== undefined && ctx.parsed.x !== null && ctx.chart.config.options?.indexAxis === 'y')
-          ? ctx.parsed.x
-          : (ctx.parsed.y ?? ctx.parsed.x ?? 0);
-        const lbl = (ctx.dataset.label || '');
+        // Suporte tanto barras verticais (parsed.y) quanto horizontais (parsed.x) e doughnut (raw)
+        const isDoughnut = ctx.chart.config.type === 'doughnut' || ctx.chart.config.type === 'pie';
+        const raw = isDoughnut
+          ? (ctx.raw ?? 0)
+          : (ctx.chart.config.options?.indexAxis === 'y' ? (ctx.parsed.x ?? 0) : (ctx.parsed.y ?? ctx.parsed.x ?? 0));
+        const lbl = (ctx.dataset.label || ctx.label || '');
         const isMonetary = /R\$|CPA|CPL|CPC|Gasto|Invest|Custo|custo/i.test(lbl);
         const isPct      = /CTR|Taxa|%/i.test(lbl);
         if (isMonetary) return ` ${lbl}: R$ ${Number(raw).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
@@ -898,20 +911,35 @@ function renderChartsGeral(G, M) {
     { label:'Meta Ads',   data: allLabels.map(l=>md.labels.includes(l)?md.values[md.labels.indexOf(l)]:0), borderColor:'#ffffff', backgroundColor:'rgba(255,255,255,0.05)', tension:.4, fill:true },
   ]);
 
-  // ── 2. Investimento total por plataforma (rosca)
-  mkChart('ch-donut','doughnut',['Google Ads','Meta Ads'],[{
-    data:[G.cost, M.cost],
-    backgroundColor:['#2854AD','#ffffff'],
-    borderColor:['#0e1620','#0e1620'], borderWidth:3
-  }],{plugins:{legend:{labels:{color:'#a8b8cc',font:{family:'Montserrat',size:10,weight:'600'},boxWidth:12}},datalabels:false}});
+  // ── 2. Investimento total por plataforma (rosca) — labels por dataset para tooltip correto
+  mkChart('ch-donut','doughnut',['Google Ads','Meta Ads'],[
+    { label:'Google Ads (R$)', data:[G.cost, null], backgroundColor:['#2854AD','transparent'], borderColor:['#0e1620','transparent'], borderWidth:3 },
+    { label:'Meta Ads (R$)',   data:[null, M.cost],  backgroundColor:['transparent','#ffffff'],  borderColor:['transparent','#0e1620'],  borderWidth:3 },
+  ]);
 
-  // ── 3. Participação no total de conversões (pizza)
-  const totalConv = G.conv + M.conv + M.leads;
-  mkChart('ch-conv-pizza','doughnut',['Google Conv.','Meta Conv.','Meta Leads'],[{
-    data:[G.conv, M.conv, M.leads],
-    backgroundColor:['#2854AD','#ffffff','#FFD600'],
-    borderColor:['#0e1620','#0e1620','#0e1620'], borderWidth:3
-  }]);
+  // ── 3. Participação no total de resultados (pizza)
+  // Usa leads Meta + conversões Google como métricas de resultado
+  const gConvVal = G.conv || 0;
+  const mLeadsVal = M.leads || 0;
+  const mConvVal = M.conv || 0;
+  // Só renderiza se tiver algum dado
+  const totalResults = gConvVal + mLeadsVal + mConvVal;
+  if (totalResults > 0) {
+    mkChart('ch-conv-pizza','doughnut',
+      ['Google – Conv.','Meta – Leads','Meta – Conv.'].filter((_,i)=>[gConvVal,mLeadsVal,mConvVal][i]>0),
+      [{
+        data:[gConvVal,mLeadsVal,mConvVal].filter(v=>v>0),
+        backgroundColor:['#2854AD','#FFD600','#ffffff'].filter((_,i)=>[gConvVal,mLeadsVal,mConvVal][i]>0),
+        borderColor:'#0e1620', borderWidth:3
+      }]
+    );
+  } else {
+    // Sem dados — mostra mensagem
+    const el = document.getElementById('ch-conv-pizza');
+    if (el) { const ctx = el.getContext('2d'); ctx.clearRect(0,0,el.width,el.height); }
+    const parent = document.getElementById('ch-conv-pizza')?.parentElement;
+    if (parent) parent.insertAdjacentHTML('beforeend','<p style="text-align:center;color:#4a617a;font-size:11px;font-weight:700;padding:20px 0">Sem conversões no período</p>');
+  }
 
   // ── 4. Leads & conversões por plataforma (barras verticais)
   mkChart('ch-leads','bar',['Google Ads','Meta Ads'],[
