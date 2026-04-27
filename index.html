@@ -344,6 +344,12 @@ function toObjects(rows, headerRow = 1) {
 // ══════════════════════════════════════════
 function findCol(obj, candidates) {
   const keys = Object.keys(obj);
+  // 1. Exact match (case-insensitive)
+  for (const c of candidates) {
+    const found = keys.find(k => k.trim().toLowerCase() === c.trim().toLowerCase());
+    if (found) return found;
+  }
+  // 2. Partial match (only if no exact match found)
   for (const c of candidates) {
     const found = keys.find(k => k.toLowerCase().includes(c.toLowerCase()));
     if (found) return found;
@@ -353,32 +359,44 @@ function findCol(obj, candidates) {
 
 // Mapeia Google Ads
 function mapGoogle(rows) {
-  return rows.map(r => {
-    const dateCol   = findCol(r, ['Day','Date','Data','Dia','day']);
-    const campCol   = findCol(r, ['Campaign','Campanha','campaign']);
-    const costCol   = findCol(r, ['Cost','Custo','Gasto','cost','spend']);
-    const impCol    = findCol(r, ['Impr','Impressi','impressi','impr']);
-    const clickCol  = findCol(r, ['Clicks','Cliques','clicks','click']);
-    const ctrCol    = findCol(r, ['CTR','ctr']);
-    const cpcCol    = findCol(r, ['CPC','cpc','Avg. CPC']);
-    const convCol   = findCol(r, ['Conversions','Conversões','conv']);
-    const convValCol= findCol(r, ['Conv. value','Valor','valor conv']);
-    const cpaCol    = findCol(r, ['Cost / conv','CPA','cpa','custo por conv']);
+  if (rows.length > 1) {
+    console.log('Google columns:', Object.keys(rows[1]));
+    if (rows[2]) console.log('Google sample raw:', JSON.stringify(rows[2]));
+  }
+  const mapped = rows.map(r => {
+    const dateCol    = findCol(r, ['Date','Day','Data','Dia']);
+    const campCol    = findCol(r, ['Campaign Name','Campaign','Campanha']);
+    // Cost comes as "R$7,99" in Cost Micros column
+    const costCol    = findCol(r, ['Cost Micros','Cost','Custo','Gasto']);
+    const impCol     = findCol(r, ['Impressions','Impressões','Impr']);
+    const clickCol   = findCol(r, ['Clicks','Cliques']);
+    const ctrCol     = findCol(r, ['Ctr','CTR']);
+    const cpcCol     = findCol(r, ['Average Cpc','Average CPC','CPC','Avg. CPC','cpc']);
+    const convCol    = findCol(r, ['Conversions','Conversões']);
+    const convValCol = findCol(r, ['Conv. value','Valor conv']);
+    const cpaCol     = findCol(r, ['Cost Per Conversion','Cost / conv','CPA']);
 
     return {
-      date:     dateCol   ? parseDate(r[dateCol])   : null,
-      campaign: campCol   ? r[campCol]               : '–',
-      cost:     costCol   ? parseNum(r[costCol])     : 0,
-      impr:     impCol    ? parseNum(r[impCol], { assumeInteger: true })      : 0,
-      clicks:   clickCol  ? parseNum(r[clickCol], { assumeInteger: true })    : 0,
-      ctr:      ctrCol    ? parseNum(r[ctrCol])      : 0,
-      cpc:      cpcCol    ? parseNum(r[cpcCol])      : 0,
-      conv:     convCol   ? parseNum(r[convCol])     : 0,
-      convVal:  convValCol? parseNum(r[convValCol])  : 0,
-      cpa:      cpaCol    ? parseNum(r[cpaCol])      : 0,
+      date:     dateCol    ? parseDate(r[dateCol])    : null,
+      campaign: campCol    ? r[campCol]                : '–',
+      cost:     costCol    ? parseNum(r[costCol])      : 0,
+      impr:     impCol     ? parseNum(r[impCol])       : 0,
+      clicks:   clickCol   ? parseNum(r[clickCol])     : 0,
+      ctr:      0, // sempre calculado como clicks/impr
+      cpc:      cpcCol     ? parseNum(r[cpcCol])       : 0,
+      conv:     convCol    ? parseNum(r[convCol])      : 0,
+      convVal:  convValCol ? parseNum(r[convValCol])   : 0,
+      cpa:      cpaCol     ? parseNum(r[cpaCol])       : 0,
       _raw: r
     };
   }).filter(r => r.date);
+
+  if (mapped.length > 0) console.log('Google PARSED sample:', JSON.stringify({
+    camp: mapped[0].campaign, date: mapped[0].date,
+    impr: mapped[0].impr, clicks: mapped[0].clicks,
+    cost: mapped[0].cost, conv: mapped[0].conv, cpc: mapped[0].cpc
+  }));
+  return mapped;
 }
 
 // Mapeia Meta Ads
@@ -389,49 +407,50 @@ function mapMeta(rows) {
     if (sample) console.log('Meta sample raw row:', JSON.stringify(sample));
   }
   const mapped = rows.map(r => {
-    const campCol = findCol(r, ['Campaign name','Campaign','Campanha','Ad Set Name','campaign','Ad set name']);
-    const dateCol    = findCol(r, ['Day','Date','Data','Dia','Reporting']);
-    const impCol     = findCol(r, ['Impressions','Impressi','Impress']);
-    const reachCol   = findCol(r, ['Reach']);
-    const clickCol   = findCol(r, ['Clicks (all)','Clicks','Cliques']);
-    const linkCol    = findCol(r, ['Link clicks']);
-    const costCol    = findCol(r, ['Amount spent']);
+    // Suporte a dois formatos: PT (export BR) e EN (export global)
+    const campCol    = findCol(r, ['Nome da campanha','Campaign name','Campaign','Campanha']);
+    const dateCol    = findCol(r, ['Início dos relatórios','Day','Date','Data','Dia']);
+    const impCol     = findCol(r, ['Impressions','Impressões']);
+    const reachCol   = findCol(r, ['Reach','Alcance']);
+    const clickCol   = findCol(r, ['Cliques (todos)','Clicks (all)','Cliques','Clicks']);
+    const linkCol    = findCol(r, ['Cliques no link','Link clicks']);
+    const ctrCol     = findCol(r, ['CTR (todos)','CTR (all)','CTR (taxa de cliques no link)']);
+    const costCol    = findCol(r, ['Valor usado (BRL)','Amount spent']);
     const leadCol    = findCol(r, ['Leads']);
     const cplCol     = findCol(r, ['Cost per Lead']);
-    const convCol    = findCol(r, ['Registrations completed','Result','Resultado']);
-    const cpaCol     = findCol(r, ['Cost per result','CPA']);
+    const convCol    = findCol(r, ['Registrations completed']);
     const follCol    = findCol(r, ['Page likes or followers','Page like or follower']);
     const profileCol = findCol(r, ['Page engagement','Post engagement']);
-    const thruCol    = findCol(r, ['Video plays at 100%','ThruPlay','thruplay']);
+    const thruCol    = findCol(r, ['Video plays at 100%','ThruPlay']);
     const cptCol     = findCol(r, ['Cost per ThruPlay']);
 
     return {
       date:        dateCol    ? parseDate(r[dateCol])    : null,
-      impr:        impCol     ? parseNum(r[impCol], { assumeInteger: true })      : 0,
-      reach:       reachCol   ? parseNum(r[reachCol], { assumeInteger: true })    : 0,
-      clicks:      clickCol   ? parseNum(r[clickCol], { assumeInteger: true })    : 0,
-      linkClicks:  linkCol    ? parseNum(r[linkCol], { assumeInteger: true })     : 0,
-      ctr:         0, // calculated from clicks/impr
+      impr:        impCol     ? parseNum(r[impCol])      : 0,
+      reach:       reachCol   ? parseNum(r[reachCol])    : 0,
+      clicks:      clickCol   ? parseNum(r[clickCol])    : 0,
+      linkClicks:  linkCol    ? parseNum(r[linkCol])     : 0,
+      ctrRaw:      ctrCol     ? parseNum(r[ctrCol])      : 0, // from sheet when available
+      ctr:         0, // will be calculated from clicks/impr in aggMeta
       cost:        costCol    ? parseNum(r[costCol])     : 0,
-      leads:       leadCol    ? parseNum(r[leadCol], { assumeInteger: true })     : 0,
+      leads:       leadCol    ? parseNum(r[leadCol])     : 0,
       cpl:         cplCol     ? parseNum(r[cplCol])      : 0,
-      conv:        convCol    ? parseNum(r[convCol], { assumeInteger: true })     : 0,
+      conv:        convCol    ? parseNum(r[convCol])     : 0,
       cpa:         cpaCol     ? parseNum(r[cpaCol])      : 0,
-      followers:   follCol    ? parseNum(r[follCol], { assumeInteger: true })     : 0,
-      profileVisit:profileCol ? parseNum(r[profileCol], { assumeInteger: true })  : 0,
+      followers:   follCol    ? parseNum(r[follCol])     : 0,
+      profileVisit:profileCol ? parseNum(r[profileCol])  : 0,
       campaign: campCol ? r[campCol] : '',
-      thruplay:    thruCol    ? parseNum(r[thruCol], { assumeInteger: true })     : 0,
+      thruplay:    thruCol    ? parseNum(r[thruCol])     : 0,
       costThru:    cptCol     ? parseNum(r[cptCol])      : 0,
       _raw: r
     };
   }).filter(r => r.date);
-  if (mapped.length > 0) console.log('Meta PARSED sample:', JSON.stringify({impr:mapped[0].impr, reach:mapped[0].reach, cost:mapped[0].cost, clicks:mapped[0].clicks, ctr:mapped[0].ctr}));
+  if (mapped.length > 0) console.log('Meta PARSED sample:', JSON.stringify({camp:mapped[0].campaign, impr:mapped[0].impr, reach:mapped[0].reach, cost:mapped[0].cost, clicks:mapped[0].clicks, leads:mapped[0].leads, ctrRaw:mapped[0].ctrRaw}));
   return mapped;
 }
 
 // ── PARSERS ──
-function parseNum(v, opts = {}) {
-  const { assumeInteger = false } = opts;
+function parseNum(v) {
   if (!v || v === '' || v === '-' || v === '–') return 0;
   let s = String(v).trim();
 
@@ -459,19 +478,9 @@ function parseNum(v, opts = {}) {
       s = s.replace(/,/g, '');
     }
   } else if (commas === 1) {
-    // Ambíguo: pode ser decimal BR ("118,72") ou milhar US ("17,757")
-    const [, right] = s.split(',');
-    const rightDigits = (right || '').replace(/\D/g, '').length;
-    if (assumeInteger) {
-      // Campos de volume (impressões/alcance/cliques) são inteiros
-      s = s.replace(',', '');
-    } else if (rightDigits === 3) {
-      // Fallback: em formatos sem contexto, 3 dígitos tende a milhar
-      s = s.replace(',', '');
-    } else {
-      // Ex.: 118,72 / 2,31458 => vírgula decimal
-      s = s.replace(',', '.');
-    }
+    // Formato Meta BR: "118,72" ou "2,31458" → sempre vírgula decimal
+    // Se não tiver ponto, vírgula é SEMPRE decimal nesse export
+    s = s.replace(',', '.');
   }
 
   s = s.replace(/[^0-9.\-]/g, '');
