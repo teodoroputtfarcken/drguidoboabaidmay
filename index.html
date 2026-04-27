@@ -918,27 +918,31 @@ function renderChartsGeral(G, M) {
   ]);
 
   // ── 3. Participação no total de resultados (pizza)
-  // Usa leads Meta + conversões Google como métricas de resultado
-  const gConvVal = G.conv || 0;
+  const gConvVal  = G.conv  || 0;
   const mLeadsVal = M.leads || 0;
-  const mConvVal = M.conv || 0;
-  // Só renderiza se tiver algum dado
-  const totalResults = gConvVal + mLeadsVal + mConvVal;
-  if (totalResults > 0) {
-    mkChart('ch-conv-pizza','doughnut',
-      ['Google – Conv.','Meta – Leads','Meta – Conv.'].filter((_,i)=>[gConvVal,mLeadsVal,mConvVal][i]>0),
-      [{
-        data:[gConvVal,mLeadsVal,mConvVal].filter(v=>v>0),
-        backgroundColor:['#2854AD','#FFD600','#ffffff'].filter((_,i)=>[gConvVal,mLeadsVal,mConvVal][i]>0),
-        borderColor:'#0e1620', borderWidth:3
-      }]
-    );
+  const mConvVal  = M.conv  || 0;
+  console.log('Pizza data → G.conv:', gConvVal, 'M.leads:', mLeadsVal, 'M.conv:', mConvVal);
+
+  const pizzaLabels = ['Google – Conv.', 'Meta – Leads', 'Meta – Conv.'];
+  const pizzaData   = [gConvVal, mLeadsVal, mConvVal];
+  const pizzaColors = ['#2854AD', '#FFD600', '#ffffff'];
+
+  // Filtra só os que têm valor > 0
+  const pLabels = pizzaLabels.filter((_,i) => pizzaData[i] > 0);
+  const pData   = pizzaData.filter(v => v > 0);
+  const pColors = pizzaColors.filter((_,i) => pizzaData[i] > 0);
+
+  if (pData.length > 0) {
+    mkChart('ch-conv-pizza','doughnut', pLabels, [{
+      data: pData,
+      backgroundColor: pColors,
+      borderColor: '#0e1620', borderWidth: 3
+    }]);
   } else {
-    // Sem dados — mostra mensagem
-    const el = document.getElementById('ch-conv-pizza');
-    if (el) { const ctx = el.getContext('2d'); ctx.clearRect(0,0,el.width,el.height); }
     const parent = document.getElementById('ch-conv-pizza')?.parentElement;
-    if (parent) parent.insertAdjacentHTML('beforeend','<p style="text-align:center;color:#4a617a;font-size:11px;font-weight:700;padding:20px 0">Sem conversões no período</p>');
+    if (parent && !parent.querySelector('.no-data-msg')) {
+      parent.insertAdjacentHTML('beforeend','<p class="no-data-msg" style="text-align:center;color:#4a617a;font-size:11px;font-weight:700;padding:20px 0">Sem conversões no período</p>');
+    }
   }
 
   // ── 4. Leads & conversões por plataforma (barras verticais)
