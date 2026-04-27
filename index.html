@@ -1061,12 +1061,13 @@ function renderChartsGoogle() {
   };
 
   // ── 1. Impressões x Cliques por Dia (combinado barras + linha)
+  // order:1 nas barras e order:0 na linha garante que a linha fica na frente
   const cd = getDailyData(filtGoogle, 'clicks');
   const id = getDailyData(filtGoogle, 'impr');
   const allL = [...new Set([...cd.labels,...id.labels])].sort();
   mkChart('ch-gclicks','bar', allL, [
-    { type:'bar',  label:'Impressões', data:allL.map(l=>id.labels.includes(l)?id.values[id.labels.indexOf(l)]:0), backgroundColor:'#2854AD', borderRadius:4, yAxisID:'y' },
-    { type:'line', label:'Cliques',    data:allL.map(l=>cd.labels.includes(l)?cd.values[cd.labels.indexOf(l)]:0), borderColor:'#FFD600', tension:.4, pointBackgroundColor:'#FFD600', yAxisID:'y1' },
+    { type:'bar',  label:'Impressões', data:allL.map(l=>id.labels.includes(l)?id.values[id.labels.indexOf(l)]:0), backgroundColor:'#2854AD', borderRadius:4, yAxisID:'y', order:2 },
+    { type:'line', label:'Cliques',    data:allL.map(l=>cd.labels.includes(l)?cd.values[cd.labels.indexOf(l)]:0), borderColor:'#FFD600', backgroundColor:'rgba(255,214,0,0.06)', tension:.4, pointBackgroundColor:'#FFD600', pointRadius:4, pointHoverRadius:6, yAxisID:'y1', order:1 },
   ], { scales: scalesDual });
 
   // ── 2. CTR por campanha (barras horizontais — média ponderada real)
@@ -1111,13 +1112,14 @@ function renderChartsGoogle() {
     backgroundColor:'#ffffff', borderRadius:6
   }], { indexAxis:'y', scales: scalesH });
 
-  // ── 8. Evolução diária de conversões (linha)
+  // ── 8. Evolução diária de conversões + investimento (combinado)
   const convD = getDailyData(filtGoogle, 'conv');
-  mkChart('ch-gconv-dia','line', convD.labels, [{
-    label:'Conversões',
-    data: convD.values,
-    borderColor:'#FFD600', backgroundColor:'rgba(255,214,0,0.05)', tension:.4, fill:true
-  }], { scales: scalesH });
+  const costD = getDailyData(filtGoogle, 'cost');
+  const convCostLabels = [...new Set([...convD.labels,...costD.labels])].sort();
+  mkChart('ch-gconv-dia','bar', convCostLabels, [
+    { type:'bar',  label:'Investimento (R$)', data: convCostLabels.map(l=>costD.labels.includes(l)?costD.values[costD.labels.indexOf(l)]:0), backgroundColor:'#2854AD', borderRadius:4, yAxisID:'y', order:2 },
+    { type:'line', label:'Conversões',        data: convCostLabels.map(l=>convD.labels.includes(l)?convD.values[convD.labels.indexOf(l)]:0), borderColor:'#FFD600', backgroundColor:'rgba(255,214,0,0.06)', tension:.4, pointBackgroundColor:'#FFD600', pointRadius:5, pointHoverRadius:7, yAxisID:'y1', order:1 },
+  ], { scales: scalesDual });
 }
 
 function renderChartsMeta() {
