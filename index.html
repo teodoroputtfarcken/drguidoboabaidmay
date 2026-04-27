@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Performance Dashboard · Clínica Dr. Guido Boabaid May</title>
+<link rel="icon" type="image/png" href="logo.png">
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -244,7 +245,6 @@ tr:hover td{background:rgba(22,47,101,0.1)}
         <select id="f-metacampaign" onchange="applyFilters()"><option value="">Todas</option></select>
       </div>
       <div class="factions">
-        <button class="btn btn-white" onclick="applyFilters()">Aplicar</button>
         <button class="btn btn-ghost" onclick="clearFilters()">Limpar</button>
       </div>
     </div>
@@ -264,7 +264,7 @@ tr:hover td{background:rgba(22,47,101,0.1)}
   <!-- LOADING STATE -->
   <div id="loading-state" class="loading">
     <div class="spinner"></div>
-    <p>Carregando dados das planilhas...</p>
+    <p>Carregando dados...</p>
   </div>
 
   <!-- ERROR -->
@@ -322,9 +322,20 @@ tr:hover td{background:rgba(22,47,101,0.1)}
       </div>
       <div class="kgrid" id="kg-meta"></div>
       <div class="cgrid">
+        <!-- Gráficos existentes -->
         <div class="ccard wide"><div class="ctitle">Alcance & Impressões por Dia</div><canvas id="ch-mreach"></canvas></div>
         <div class="ccard"><div class="ctitle">Leads por Dia</div><canvas id="ch-mleads"></canvas></div>
         <div class="ccard"><div class="ctitle">Custo por Lead por Dia</div><canvas id="ch-mcpl"></canvas></div>
+        <!-- Novos gráficos por campanha -->
+        <div class="ccard"><div class="ctitle">Investimento por Campanha</div><canvas id="ch-m-invest-camp"></canvas></div>
+        <div class="ccard"><div class="ctitle">Leads & Conversões por Campanha</div><canvas id="ch-m-leads-camp"></canvas></div>
+        <div class="ccard"><div class="ctitle">CPL por Campanha</div><canvas id="ch-m-cpl-camp"></canvas></div>
+        <div class="ccard"><div class="ctitle">Alcance por Campanha</div><canvas id="ch-m-reach-camp"></canvas></div>
+        <div class="ccard"><div class="ctitle">CTR por Campanha</div><canvas id="ch-m-ctr-camp"></canvas></div>
+        <div class="ccard"><div class="ctitle">CPC por Campanha</div><canvas id="ch-m-cpc-camp"></canvas></div>
+        <div class="ccard"><div class="ctitle">CPM por Campanha</div><canvas id="ch-m-cpm-camp"></canvas></div>
+        <div class="ccard wide"><div class="ctitle">Investimento x Leads por Dia</div><canvas id="ch-m-invest-leads"></canvas></div>
+        <div class="ccard wide" id="funil-meta-card"><div class="ctitle">Funil Meta — Impressões → Alcance → Cliques → Conversões</div><div id="ch-funil-meta" style="padding:16px 0"></div></div>
       </div>
       <div class="tcard">
         <div class="thead-bar"><div class="sec-title" style="margin:0">Indicadores por Campanha</div></div>
@@ -1123,24 +1134,48 @@ function renderChartsGoogle() {
 }
 
 function renderChartsMeta() {
+  if (!filtMeta.length) return;
+
+  const scalesH = {
+    x:{ticks:{color:'#ffffff',font:{family:'Montserrat',size:8}},grid:{color:'rgba(255,255,255,0.04)'}},
+    y:{ticks:{color:'#ffffff',font:{family:'Montserrat',size:8}},grid:{color:'rgba(255,255,255,0.04)'}}
+  };
+  const scalesDual = {
+    x:{ticks:{color:'#ffffff',font:{family:'Montserrat',size:8}},grid:{color:'rgba(255,255,255,0.04)'}},
+    y:{ticks:{color:'#ffffff',font:{family:'Montserrat',size:8}},grid:{color:'rgba(255,255,255,0.04)'}},
+    y1:{position:'right',ticks:{color:'#ffffff',font:{family:'Montserrat',size:8}},grid:{display:false}}
+  };
+
+  // Agrupa por campanha
+  const byC = {};
+  filtMeta.forEach(r => {
+    const k = r.campaign || '(sem campanha)';
+    if (!byC[k]) byC[k] = { cost:0, impr:0, reach:0, clicks:0, leads:0, conv:0 };
+    byC[k].cost   += r.cost;
+    byC[k].impr   += r.impr;
+    byC[k].reach  += r.reach;
+    byC[k].clicks += r.clicks;
+    byC[k].leads  += r.leads;
+    byC[k].conv   += r.conv;
+  });
+  const camps = Object.keys(byC);
+
+  // 1. Alcance & Impressões por Dia
   const rd = getDailyData(filtMeta, 'reach');
   const id = getDailyData(filtMeta, 'impr');
   const allL = [...new Set([...rd.labels,...id.labels])].sort();
   mkChart('ch-mreach','line', allL, [
-    { label:'Alcance', data:allL.map(l=>rd.labels.includes(l)?rd.values[rd.labels.indexOf(l)]:0), borderColor:'#2a5cbf', tension:.4 },
-    { label:'Impressões', data:allL.map(l=>id.labels.includes(l)?id.values[id.labels.indexOf(l)]:0), borderColor:'#ffffff', tension:.4, yAxisID:'y1' },
-  ], { scales:{
-    x:{ticks:{color:'#ffffff',font:{family:'Montserrat',size:9}},grid:{color:'rgba(255,255,255,0.04)'}},
-    y:{ticks:{color:'#ffffff',font:{family:'Montserrat',size:9}},grid:{color:'rgba(255,255,255,0.04)'}},
-    y1:{position:'right',ticks:{color:'#ffffff',font:{family:'Montserrat',size:9}},grid:{display:false}}
-  }});
+    { label:'Alcance',    data:allL.map(l=>rd.labels.includes(l)?rd.values[rd.labels.indexOf(l)]:0), borderColor:'#2854AD', backgroundColor:'rgba(40,84,173,0.06)', tension:.4, fill:true, order:1 },
+    { label:'Impressões', data:allL.map(l=>id.labels.includes(l)?id.values[id.labels.indexOf(l)]:0), borderColor:'#FFD600', backgroundColor:'rgba(255,214,0,0.04)', tension:.4, fill:true, yAxisID:'y1', order:2 },
+  ], { scales: scalesDual });
 
+  // 2. Leads por Dia
   const ld = getDailyData(filtMeta, 'leads');
   mkChart('ch-mleads','bar', ld.labels, [{
     label:'Leads', data:ld.values, backgroundColor:'#FFD600', borderRadius:6
-  }]);
+  }], { scales: scalesH });
 
-  // CPL por dia
+  // 3. CPL por Dia
   const byDate = {};
   filtMeta.forEach(r => {
     const d = isoDate(r.date);
@@ -1148,11 +1183,91 @@ function renderChartsMeta() {
     byDate[d].cost+=r.cost; byDate[d].leads+=r.leads;
   });
   const dDates = Object.keys(byDate).sort();
-  mkChart('ch-mcpl','line', dDates.map(d=>d.slice(5).replace('-','/')), [{
-    label:'CPL (R$)',
-    data: dDates.map(d=>safe(byDate[d].cost,byDate[d].leads)),
+  mkChart('ch-mcpl','line', dDates.map(d=>{ const p=d.slice(5).split('-'); return p[1]+'/'+p[0]; }), [{
+    label:'CPL (R$)', data: dDates.map(d=>safe(byDate[d].cost,byDate[d].leads)),
     borderColor:'#00e676', backgroundColor:'rgba(0,230,118,0.06)', tension:.4, fill:true
-  }]);
+  }], { scales: scalesH });
+
+  // 4. Investimento por Campanha
+  mkChart('ch-m-invest-camp','bar', camps, [{
+    label:'Investimento (R$)', data:camps.map(c=>byC[c].cost),
+    backgroundColor:'#2854AD', borderRadius:6
+  }], { indexAxis:'y', scales: scalesH });
+
+  // 5. Leads & Conversões por Campanha
+  mkChart('ch-m-leads-camp','bar', camps, [
+    { label:'Leads',      data:camps.map(c=>byC[c].leads), backgroundColor:'#FFD600', borderRadius:6 },
+    { label:'Conversões', data:camps.map(c=>byC[c].conv),  backgroundColor:'#2854AD', borderRadius:6 },
+  ], { indexAxis:'y', scales: scalesH });
+
+  // 6. CPL por Campanha
+  mkChart('ch-m-cpl-camp','bar', camps, [{
+    label:'CPL (R$)', data:camps.map(c=>safe(byC[c].cost, byC[c].leads)),
+    backgroundColor:'#ffffff', borderRadius:6
+  }], { indexAxis:'y', scales: scalesH });
+
+  // 7. Alcance por Campanha
+  mkChart('ch-m-reach-camp','bar', camps, [{
+    label:'Alcance', data:camps.map(c=>byC[c].reach),
+    backgroundColor:'#5B8FE8', borderRadius:6
+  }], { indexAxis:'y', scales: scalesH });
+
+  // 8. CTR por Campanha
+  mkChart('ch-m-ctr-camp','bar', camps, [{
+    label:'CTR %', data:camps.map(c=>safe(byC[c].clicks, byC[c].impr)*100),
+    backgroundColor:'#FFD600', borderRadius:6
+  }], { indexAxis:'y', scales: scalesH });
+
+  // 9. CPC por Campanha
+  mkChart('ch-m-cpc-camp','bar', camps, [{
+    label:'CPC (R$)', data:camps.map(c=>safe(byC[c].cost, byC[c].clicks)),
+    backgroundColor:'#5B8FE8', borderRadius:6
+  }], { indexAxis:'y', scales: scalesH });
+
+  // 10. CPM por Campanha (cost/impr*1000)
+  mkChart('ch-m-cpm-camp','bar', camps, [{
+    label:'CPM (R$)', data:camps.map(c=>safe(byC[c].cost, byC[c].impr)*1000),
+    backgroundColor:'#2854AD', borderRadius:6
+  }], { indexAxis:'y', scales: scalesH });
+
+  // 11. Investimento x Leads por Dia (combinado)
+  const costD  = getDailyData(filtMeta, 'cost');
+  const leadsD = getDailyData(filtMeta, 'leads');
+  const invLeadLabels = [...new Set([...costD.labels,...leadsD.labels])].sort();
+  mkChart('ch-m-invest-leads','bar', invLeadLabels, [
+    { type:'bar',  label:'Investimento (R$)', data:invLeadLabels.map(l=>costD.labels.includes(l)?costD.values[costD.labels.indexOf(l)]:0),  backgroundColor:'#2854AD', borderRadius:4, yAxisID:'y',  order:2 },
+    { type:'line', label:'Leads',             data:invLeadLabels.map(l=>leadsD.labels.includes(l)?leadsD.values[leadsD.labels.indexOf(l)]:0), borderColor:'#FFD600', backgroundColor:'rgba(255,214,0,0.06)', tension:.4, pointBackgroundColor:'#FFD600', pointRadius:4, pointHoverRadius:6, yAxisID:'y1', order:1 },
+  ], { scales: scalesDual });
+
+  // 12. Funil Meta
+  const fImpr  = filtMeta.reduce((a,r)=>a+r.impr,0);
+  const fReach = filtMeta.reduce((a,r)=>a+r.reach,0);
+  const fClick = filtMeta.reduce((a,r)=>a+r.clicks,0);
+  const fConv  = filtMeta.reduce((a,r)=>a+r.leads+r.conv,0);
+  renderFunilMeta(fImpr, fReach, fClick, fConv);
+}
+
+function renderFunilMeta(impr, reach, clicks, conv) {
+  const el = document.getElementById('ch-funil-meta');
+  if (!el) return;
+  const stages = [
+    { label:'IMPRESSÕES', value:impr,   color:'#062466', pct:100 },
+    { label:'ALCANCE',    value:reach,  color:'#2854AD', pct:impr   ? (reach/impr*100)   : 0 },
+    { label:'CLIQUES',    value:clicks, color:'#5B8FE8', pct:reach  ? (clicks/reach*100)  : 0 },
+    { label:'CONVERSÕES', value:conv,   color:'#ffffff', pct:clicks ? (conv/clicks*100)   : 0 },
+  ];
+  el.innerHTML = stages.map((s,i) => {
+    const isLight = s.color === '#ffffff';
+    const widths = [100, 78, 56, 34];
+    return `
+      <div style="margin-bottom:${i<stages.length-1?'6':'0'}px;">
+        <div style="width:${widths[i]}%;margin:0 auto;background:${s.color};border-radius:6px;padding:14px 12px;text-align:center;">
+          <div style="font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:${isLight?'#162F65':'rgba(255,255,255,0.65)'};">${s.label}</div>
+          <div style="font-size:22px;font-weight:900;color:${isLight?'#162F65':'#ffffff'};margin-top:4px;">${fmtNum(s.value)}</div>
+          ${i>0?`<div style="font-size:10px;font-weight:700;color:${isLight?'rgba(22,47,101,0.65)':'rgba(255,255,255,0.5)'};">${s.pct.toFixed(1)}% da etapa anterior</div>`:''}
+        </div>
+      </div>`;
+  }).join('');
 }
 
 // ══════════════════════════════════════════
